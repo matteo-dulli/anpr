@@ -2,7 +2,7 @@
  * 📋 Sistema Turni Operatori ANPR
  * ✅ Gestisce login/logout operatori e blocchi azioni
  * ✅ Integrato con costanti.txt per lista operatori
- * ✅ Logga tutte le azioni in tabella operatori_log_azioni
+ * ✅ Disabilita pulsanti quando turno è chiuso
  */
 
 window.TURNI = window.TURNI || {};
@@ -24,7 +24,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============ INIT UI ============
 TURNI.initUI = async function() {
     console.log('🎨 TURNI.initUI');
-    // Badge operatore nella header
     const headerStatus = document.querySelector('.header-status');
     if (!headerStatus) {
         console.warn('⚠️ .header-status non trovato');
@@ -50,8 +49,8 @@ TURNI.initUI = async function() {
         <select id="operatoreSel" style="padding: 4px 6px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 12px; min-width: 120px;">
             <option value="">Seleziona...</option>
         </select>
-        <button id="loginBtn" class="btn-small" style="background: #22c55e; color: white; padding: 4px 8px; cursor: pointer; border: none; border-radius: 4px;">🔓 Apri Turno</button>
-        <button id="logoutBtn" class="btn-small" style="background: #dc2626; color: white; padding: 4px 8px; cursor: pointer; display: none; border: none; border-radius: 4px;">🔒 Chiudi Turno</button>
+        <button id="loginBtn" class="btn-small" style="background: #22c55e; color: white; padding: 8px 14px; cursor: pointer; border: none; border-radius: 4px; font-weight: 700; font-size: 14px; min-width: 120px;">🔓 Apri Turno</button>
+        <button id="logoutBtn" class="btn-small" style="background: #dc2626; color: white; padding: 8px 14px; cursor: pointer; display: none; border: none; border-radius: 4px; font-weight: 700; font-size: 14px; min-width: 120px;">🔒 Chiudi Turno</button>
         <span id="statusBadge" style="font-weight: 700; white-space: nowrap; color: #999;">⚪ offline</span>
     `;
 
@@ -243,7 +242,6 @@ TURNI.updateUI = function() {
 // ============ CHECK TURNO AL STARTUP ============
 TURNI.checkTurnoAtStartup = async function() {
     console.log('🔄 TURNI.checkTurnoAtStartup');
-    // ✅ Prova a ripristinare da localStorage
     const wasActive = localStorage.getItem('turnoAttivo') === '1';
     const savedOperatore = localStorage.getItem('operatoreTurno');
     const savedNome = localStorage.getItem('operatoreTurnoNome');
@@ -272,20 +270,18 @@ TURNI.updateButtonStates = async function() {
     
     console.log('🔘 TURNI.updateButtonStates - isOpen:', isOpen);
 
-    // Emetti Ticket
+    // ✅ Emetti Ticket
     const emitBtn = document.getElementById('emitTicketBtn');
     if (emitBtn) {
         emitBtn.disabled = !isOpen;
         emitBtn.style.opacity = isOpen ? '1' : '0.5';
         emitBtn.style.cursor = isOpen ? 'pointer' : 'not-allowed';
         emitBtn.style.pointerEvents = isOpen ? 'auto' : 'none';
-        emitBtn.title = isOpen ? 'Emetti Ticket' : 'Turno chiuso - Non disponibile';
-        console.log('🎫 Emetti Ticket:', { disabled: emitBtn.disabled, opacity: emitBtn.style.opacity });
-    } else {
-        console.warn('⚠️ #emitTicketBtn non trovato');
+        emitBtn.title = isOpen ? 'Emetti Ticket' : 'Turno chiuso';
+        console.log('🎫 Emetti Ticket:', { disabled: emitBtn.disabled });
     }
 
-    // Ristampa Ticket (SEMPRE abilitato)
+    // ✅ Ristampa Ticket (SEMPRE abilitato)
     const reprintBtn = document.getElementById('reprintTicketBtn');
     if (reprintBtn) {
         reprintBtn.disabled = false;
@@ -295,17 +291,48 @@ TURNI.updateButtonStates = async function() {
         console.log('🖨️ Ristampa Ticket: SEMPRE abilitato');
     }
 
-    // Salva (cerca vari selettori possibili)
-    const saveBtn = document.querySelector('button.btn-save, button[onclick*="handleSave"], button[id*="save"], button:contains("Salva")');
+    // ✅ Inserisci Targa
+    const insertPlateBtn = document.getElementById('createNewPlateInline');
+    if (insertPlateBtn) {
+        insertPlateBtn.disabled = !isOpen;
+        insertPlateBtn.style.opacity = isOpen ? '1' : '0.5';
+        insertPlateBtn.style.cursor = isOpen ? 'pointer' : 'not-allowed';
+        insertPlateBtn.style.pointerEvents = isOpen ? 'auto' : 'none';
+        insertPlateBtn.title = isOpen ? 'Inserisci Targa' : 'Turno chiuso';
+        console.log('🚗 Inserisci Targa:', { disabled: insertPlateBtn.disabled });
+    }
+
+    // ✅ Salva Dati
+    const saveBtn = document.querySelector('button.btn-save, button[onclick*="handleSave"], button[id*="save"]');
     if (saveBtn) {
         saveBtn.disabled = !isOpen;
         saveBtn.style.opacity = isOpen ? '1' : '0.5';
         saveBtn.style.cursor = isOpen ? 'pointer' : 'not-allowed';
         saveBtn.style.pointerEvents = isOpen ? 'auto' : 'none';
-        saveBtn.title = isOpen ? 'Salva Dati' : 'Turno chiuso - Non disponibile';
-        console.log('💾 Salva:', { disabled: saveBtn.disabled, opacity: saveBtn.style.opacity });
-    } else {
-        console.warn('⚠️ Pulsante Salva non trovato');
+        saveBtn.title = isOpen ? 'Salva Dati' : 'Turno chiuso';
+        console.log('💾 Salva Dati:', { disabled: saveBtn.disabled });
+    }
+
+    // ✅ Modulo 5: Inserisci Ricarica
+    const ricaricaBtn = document.getElementById('inserisciRicaricaBtn');
+    if (ricaricaBtn) {
+        ricaricaBtn.disabled = !isOpen;
+        ricaricaBtn.style.opacity = isOpen ? '1' : '0.5';
+        ricaricaBtn.style.cursor = isOpen ? 'pointer' : 'not-allowed';
+        ricaricaBtn.style.pointerEvents = isOpen ? 'auto' : 'none';
+        ricaricaBtn.title = isOpen ? 'Inserisci Ricarica' : 'Turno chiuso';
+        console.log('💳 Inserisci Ricarica:', { disabled: ricaricaBtn.disabled });
+    }
+
+    // ✅ Modulo 5: Crea Nuova Tessera
+    const nuovaTesseraBtn = document.getElementById('createNewCardBtn');
+    if (nuovaTesseraBtn) {
+        nuovaTesseraBtn.disabled = !isOpen;
+        nuovaTesseraBtn.style.opacity = isOpen ? '1' : '0.5';
+        nuovaTesseraBtn.style.cursor = isOpen ? 'pointer' : 'not-allowed';
+        nuovaTesseraBtn.style.pointerEvents = isOpen ? 'auto' : 'none';
+        nuovaTesseraBtn.title = isOpen ? 'Crea Nuova Tessera' : 'Turno chiuso';
+        console.log('📇 Crea Nuova Tessera:', { disabled: nuovaTesseraBtn.disabled });
     }
 };
 
@@ -317,7 +344,6 @@ TURNI.checkBeforeAction = async function(azione) {
         return false;
     }
 
-    // Log azione
     try {
         await fetch(`${API_BASE}/log_azione_operatore.php`, {
             method: 'POST',
