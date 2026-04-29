@@ -62,16 +62,15 @@ try {
     $now = date('Y-m-d H:i:s');
 
     // ✅ CORRETTO: crea automaticamente il record se non esiste
-    // Primo: verifica se esiste
     $chk = $db->prepare("SELECT id FROM operatori_turni WHERE operatore_cod = ? LIMIT 1");
     $chk->execute([$operatore_cod]);
     $existing = $chk->fetch();
 
     if (!$existing) {
-        // ✅ CORRETTO: INSERT senza colonna 'nome' (non esiste nella tabella)
+        // ✅ CORRETTO: INSERT SOLO colonne necessarie
         $ins = $db->prepare("
-            INSERT INTO operatori_turni (operatore_cod, stato, inizio_turno, login_time, created_at, updated_at)
-            VALUES (?, 'online', ?, ?, NOW(), NOW())
+            INSERT INTO operatori_turni (operatore_cod, stato, inizio_turno, login_time)
+            VALUES (?, 'online', ?, ?)
         ");
         $ins->execute([$operatore_cod, $now, $now]);
     } else {
