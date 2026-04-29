@@ -78,10 +78,10 @@ ALTER TABLE `invoices_printed` ADD KEY `idx_id_turno` (`id_turno`);
 ALTER TABLE `invoices_printed` ADD CONSTRAINT `fk_invoices_printed_turno` 
   FOREIGN KEY (`id_turno`) REFERENCES `operatori_turni`(`id`) ON DELETE SET NULL;
 
--- ✅ TESSERE_PRE (abbonamenti)
-ALTER TABLE `tessere_pre` ADD COLUMN `id_turno` INT COMMENT 'FK: operatori_turni.id' AFTER `id`;
-ALTER TABLE `tessere_pre` ADD KEY `idx_id_turno` (`id_turno`);
-ALTER TABLE `tessere_pre` ADD CONSTRAINT `fk_tessere_pre_turno` 
+-- ✅ TESSERAPRE (abbonamenti) - CORRETTO: tesserapre (non tesserepre)
+ALTER TABLE `tesserapre` ADD COLUMN `id_turno` INT COMMENT 'FK: operatori_turni.id' AFTER `id`;
+ALTER TABLE `tesserapre` ADD KEY `idx_id_turno` (`id_turno`);
+ALTER TABLE `tesserapre` ADD CONSTRAINT `fk_tesserapre_turno` 
   FOREIGN KEY (`id_turno`) REFERENCES `operatori_turni`(`id`) ON DELETE SET NULL;
 
 -- ✅ ABBONAMENTI
@@ -121,7 +121,7 @@ SELECT
   MAX(ola.data_ora) as ultima_azione
 FROM operatori_turni ot
 LEFT JOIN operatori_log_azioni ola ON ot.id = ola.id_turno
-GROUP BY ot.id, ot.operatore_cod, ota.azione
+GROUP BY ot.id, ot.operatore_cod, ola.azione
 ORDER BY ot.inizio_turno DESC;
 
 -- Vista: Riepilogo turni per operatore
