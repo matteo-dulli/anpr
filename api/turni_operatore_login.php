@@ -70,8 +70,8 @@ try {
     if (!$existing) {
         // ✅ CORRETTO: INSERT senza colonna 'nome' (non esiste nella tabella)
         $ins = $db->prepare("
-            INSERT INTO operatori_turni (operatore_cod, stato, inizio_turno, login_time, updated_at)
-            VALUES (?, 'online', ?, ?, NOW())
+            INSERT INTO operatori_turni (operatore_cod, stato, inizio_turno, login_time)
+            VALUES (?, 'online', ?, ?)
         ");
         $ins->execute([$operatore_cod, $now, $now]);
     } else {
@@ -90,7 +90,7 @@ try {
     }
 
     $response['success'] = true;
-    $response['message'] = "✅ Turno aperto per operatore $operatore_cod - $operatore_nome";
+    $response['message'] = "✅ Turno aperto per $operatore_nome";
     $response['data'] = [
         'operatore_cod' => $operatore_cod,
         'operatore_nome' => $operatore_nome,
