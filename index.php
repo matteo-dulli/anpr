@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lettura e Gestione Targhe</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- ✅ BOOT CONFIG (sempre valido, anche senza PHP) -->
+  <script>
+    window.API_BASE    = window.API_BASE    || "/anpr/api";
+    window.INVOICE_URL = window.INVOICE_URL || "/anpr/invoice";
+    window.PRINT_URL   = window.PRINT_URL   || "/anpr/print";
+
+    // thumbs default (no PHP)
+    window.ANPR_THUMB_W = window.ANPR_THUMB_W || 320;
+    window.ANPR_THUMB_Q = window.ANPR_THUMB_Q || 70;
+  </script>
+</head>
+
+<body>
+<div class="container">
+  <!-- HEADER -->
+  <div class="header">
+    <h1>🚗 Gestione SMART Autorimessa - con ANPR</h1>
+
+    <div class="header-center">
+      <span id="headerDateTime" class="header-datetime"></span>
+    </div>
+
+    <div class="header-status">
+      <!-- PRESENZE TOPBAR (NUOVO) -->
+      <div id="presenzeTopbar" style="display:flex;align-items:center;gap:10px;margin-right:14px;">
+        <div style="font-weight:700;font-size:16px;white-space:nowrap;">
+          Presenze: <span id="presentiCounter">…</span>
+        </div>
+
+        <select id="presentiDays"
+                style="padding:6px 10px;border-radius:6px;border:none;font-size:14px;min-width:190px;">
+        </select>
+      </div>
+
+      <!-- DB STATUS (FIX: overlay per evitare vibrazioni/spostamenti) -->
+      <div id="dbStatusWrap" class="db-status db-wait" title="Stato connessione">
+        <span class="db-layer db-wait-layer">
+          <span class="db-dot dot-yellow"></span>
+          <span class="db-text">Lettura</span>
+        </span>
+
+        <span class="db-layer db-ok-layer">
+          <span class="db-dot dot-green"></span>
+          <span class="db-text">Connesso</span>
+        </span>
+
+        <span class="db-layer db-bad-layer">
+          <span class="db-dot dot-red"></span>
+          <span class="db-text">No Conn</span>
+        </span>
+      </div>
+      <!-- FINE DB STATUS -->
+
+      <span id="connectionTime"></span>
+
+      <select id="refreshInterval" style="padding:4px;border-radius:4px;border:none;">
+        <option value="1">Refresh 1s</option>
+        <option value="2" selected>Refresh 2s</option>
+        <option value="5">Refresh 5s</option>
+        <option value="10">Refresh 10s</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- BARRA RICERCA / FILTRI -->
+  <div class="search-section">
+    <div class="search-row-main">
+
+      <!-- 1ª colonna: Giorni -->
+      <div class="search-item">
+        <label>Giorni:</label>
+        <div class="control-wrap">
+          <input type="number" id="searchDays" value="1" min="1" max="30">
+        </div>
+      </div>
+
+      <!-- 2ª colonna: Nuova targa inline -->
+      <div class="search-item search-item-new-plate">
+        <label>Inserimento nuova targa:</label>
+        <div style="display:flex; gap:4px;">
+          <input type="text"
+                 id="newPlateInline"
+                 maxlength="10"
+                 placeholder="Es: AB123CD"
+                 style="flex:1; padding:6px 8px; font-size:12px;">
+          <button class="btn btn-primary btn-new-plate" id="createNewPlateInline">
+            ✏️ Inserisci
+          </button>
+        </div>
+      </div>
+
+      <!-- Ticket buttons -->
+      <div class="search-item">
+        <label>&nbsp;</label>
+        <div class="ticket-buttons-container">
+          <button id="emitTicketBtn" class="btn-emit">🎫 Emetti Ticket</button>
+          <button id="reprintTicketBtn" class="btn-reprint">🖨️ Ristampa Ticket</button>
+        </div>
+      </div>
+
+      <!-- Input unico: Ticket/Ricevuta/Targa/Passaggio -->
+      <div class="search-item" id="searchTicketWrapper" style="position:relative;">
+        <label>Ricerca Ticket - Targhe - Ricevute:</label>
+        <input type="text" id="searchTicketInfo" placeholder="Ticket / Ricevuta / Targa / ID passaggio...">
+      </div>
+
+      <div class="search-item">
+        <label>&nbsp;</label>
+        <div class="search-buttons-wrapper">
+          <button class="btn btn-small" id="searchBtn" onclick="handleTicketSearch()">🔍 Cerca</button>
+          <button class="btn btn-small" id="resetBtn" onclick="location.reload(true)">↺ Reset</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LAYOUT PRINCIPALE -->
+  <div class="main-layout">
+    <div class="plates-section">
+      <button class="plates-section-header-btn" onclick="closeDetails()">✕ Chiudi Scheda Targhe</button>
+      <div class="plates-list" id="platesList">
+        <p class="empty-state">🔍 Caricamento...</p>
+      </div>
+      <div class="plates-stats">
+        <span id="platesCount">0 targhe</span>
+      </div>
+    </div>
+
+    <div class="details-section">
+      <div class="details-panel" id="detailsPanel">
+        <!-- ✅ ROOT DATI (per details.js / calcoli) -->
+        <div id="details-root" data-plate-id="" data-passage-id="" data-id="" style="display:none"></div>
+
+        <p class="empty-state">Seleziona una targa</p>
+      </div>
+    </div>
+
+    <div class="image-section">
+      <div class="image-box" id="imageBox"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMMAGINE -->
+<div id="imageModal" class="modal">
+  <div class="modal-content">
+    <span class="modal-close">&times;</span>
+    <img id="modalImage" class="modal-image" src="" alt="Immagine targa">
+    <div id="modalCaption" class="modal-caption"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- ✅ COMPAT: molti file usano API_BASE senza window. -->
+<script>var API_BASE = window.API_BASE;</script>
+
+<script src="/anpr/js/utils.js"></script>
+<script src="/anpr/js/ui.js"></script>
+
+<!-- ===========================================================
+     ✅ PATCH (AGGIUNTA): helper per aprire il popup con URL full
+     - NON serve trovare openImageModal in app.js
+     - rende disponibile openImageModalUrl() a details.js/app.js
+     - mantiene il popup esistente (#imageModal)
+=========================================================== -->
+<script>
+(function () {
+  // Fallback openImageModal se non esiste già (non sovrascrive se presente)
+  if (typeof window.openImageModal !== 'function') {
+    window.openImageModal = function (imgEl, caption) {
+      var modal = document.getElementById('imageModal');
+      var modalImg = document.getElementById('modalImage');
+      var modalCap = document.getElementById('modalCaption');
+      var closeBtn = document.querySelector('#imageModal .modal-close');
+      if (!modal || !modalImg) return;
+
+      modalImg.src = imgEl && imgEl.src ? imgEl.src : '';
+      if (modalCap) modalCap.textContent = caption || '';
+      modal.style.display = 'block';
+
+      function close() { modal.style.display = 'none'; }
+      if (closeBtn) closeBtn.onclick = close;
+      modal.onclick = function (e) { if (e.target === modal) close(); };
+      document.onkeydown = function (e) { if (e.key === 'Escape') close(); };
+    };
+  }
+
+  // Helper: apre il modal caricando PRIMA l'URL full (w=0) e poi passando l'immagine a openImageModal
+  window.openImageModalUrl = function (url, caption) {
+    var img = new Image();
+    img.onload = function () { window.openImageModal(img, caption); };
+    img.onerror = function () {
+      if (typeof window.showToast === 'function') window.showToast('❌ Immagine non disponibile', 'error', 2500);
+      else console.error('Immagine non disponibile:', url);
+    };
+    img.src = url;
+  };
+})();
+</script>
+<!-- ======================= FINE PATCH ======================= -->
+
+<script src="/anpr/js/modulo1.js"></script>
+<script src="/anpr/js/modulo2.js"></script>
+<script src="/anpr/js/modulo3.js"></script>
+<script src="/anpr/js/modulo4.js"></script>
+<script src="/anpr/js/modulo5.js"></script>
+<script src="/anpr/js/modulo6.js"></script>
+
+<script>
+/**
+ * ✅ PATCH COMPATIBILITÀ (NON RIMUOVERE)
+ * Serve a evitare errori in details.js quando "obj" non è definito.
+ * Prova a ricavare plateId / passageId dal pannello dettagli (quando presente).
+ */
+(function () {
+  window.obj = window.obj || {};
+
+  function readIdsFromDOM() {
+    var root = document.getElementById('details-root');
+    if (root && root.dataset) {
+      if (!window.PLATE_ID && root.dataset.plateId) window.PLATE_ID = parseInt(root.dataset.plateId, 10) || window.PLATE_ID;
+      if (!window.PASSAGE_ID && root.dataset.passageId) window.PASSAGE_ID = parseInt(root.dataset.passageId, 10) || window.PASSAGE_ID;
+      if (!window.obj.id && root.dataset.id) window.obj.id = parseInt(root.dataset.id, 10) || window.obj.id;
+    }
+
+    var panel = document.getElementById('detailsPanel');
+    if (!panel) return;
+
+    var plateEl =
+      panel.querySelector('input[name="plate_id"]') ||
+      panel.querySelector('#plate_id') ||
+      panel.querySelector('[data-plate-id]');
+
+    var passageEl =
+      panel.querySelector('input[name="passage_id"]') ||
+      panel.querySelector('#passage_id') ||
+      panel.querySelector('[data-passage-id]');
+
+    var plateId = null, passageId = null;
+
+    if (plateEl) {
+      plateId = plateEl.value || plateEl.getAttribute('data-plate-id');
+      plateId = plateId ? (parseInt(plateId, 10) || null) : null;
+    }
+    if (passageEl) {
+      passageId = passageEl.value || passageEl.getAttribute('data-passage-id');
+      passageId = passageId ? (parseInt(passageId, 10) || null) : null;
+    }
+
+    if (!window.PLATE_ID && plateId) window.PLATE_ID = plateId;
+    if (!window.PASSAGE_ID && passageId) window.PASSAGE_ID = passageId;
+
+    if (!window.obj.id) window.obj.id = window.PASSAGE_ID || window.PLATE_ID || window.obj.id;
+    window.obj.plate_id = window.obj.plate_id || window.PLATE_ID || null;
+    window.obj.passage_id = window.obj.passage_id || window.PASSAGE_ID || null;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    readIdsFromDOM();
+    setTimeout(readIdsFromDOM, 250);
+    setTimeout(readIdsFromDOM, 800);
+  });
+
+  window.ANPR_syncDetailsIds = readIdsFromDOM;
+})();
+</script>
+
+<script src="/anpr/js/details.js"></script>
+<script src="/anpr/js/plate-management.js"></script>
+<script src="/anpr/js/plates.js"></script>
+<script src="/anpr/js/app.js"></script>
+
+<!-- INIT PRESENZE (NUOVO) -->
+<script>
+  (function () {
+    async function fetchPresenti(days) {
+      if (!window.API_BASE) throw new Error('API_BASE non definito');
+      const r = await fetch(`${window.API_BASE}/get_presenti.php?days=${days}&t=${Date.now()}`, { cache: 'no-store' });
+      return r.json();
+    }
+
+    async function initPresenzeTopbar() {
+      if (!window.API_BASE) {
+        console.error('API_BASE non definito: presenzeTopbar disabilitato');
+        return;
+      }
+
+      const sel = document.getElementById('presentiDays');
+      const counter = document.getElementById('presentiCounter');
+      if (!sel || !counter) return;
+
+      const j = await fetchPresenti(1);
+      if (!j.success) return;
+
+      sel.innerHTML = '';
+      (j.data.options || []).forEach(opt => {
+        const o = document.createElement('option');
+        o.value = String(opt.value);
+        o.textContent = opt.label;
+        sel.appendChild(o);
+      });
+
+      sel.value = '1';
+      counter.textContent = j.data.presenti ?? '-';
+
+      sel.addEventListener('change', async () => {
+        const days = parseInt(sel.value || '1', 10) || 1;
+        const jj = await fetchPresenti(days);
+        if (jj.success) counter.textContent = jj.data.presenti ?? '-';
+      });
+
+      setInterval(async () => {
+        const days = parseInt(sel.value || '1', 10) || 1;
+        const jj = await fetchPresenti(days);
+        if (jj.success) counter.textContent = jj.data.presenti ?? '-';
+      }, 15000);
+    }
+
+    document.addEventListener('DOMContentLoaded', initPresenzeTopbar);
+  })();
+</script>
+
+</body>
+</html>

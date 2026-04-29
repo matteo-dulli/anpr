@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>🔍 Generatore Config ANPR</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Courier New', monospace; 
+            background: linear-gradient(135deg, #1e1e1e 0%, #252526 100%);
+            color: #d4d4d4; 
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #4ec9b0; margin-bottom: 30px; text-shadow: 0 2px 10px rgba(78, 201, 176, 0.3); }
+        h2 { color: #569cd6; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #569cd6; padding-bottom: 10px; }
+        .section { 
+            background: #252526; 
+            padding: 20px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            border-left: 4px solid #007acc;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .path-item { 
+            background: #1e1e1e; 
+            padding: 12px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+            border-left: 3px solid #4ec9b0;
+            font-size: 13px;
+            word-break: break-all;
+        }
+        .path-item code { 
+            display: block; 
+            color: #ce9178;
+            background: #2d2d30;
+            padding: 8px;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .label { color: #9cdcfe; font-weight: bold; }
+        .status-ok { color: #4ec9b0; font-weight: bold; font-size: 12px; margin-top: 5px; display: inline-block; }
+        .status-error { color: #f48771; font-weight: bold; font-size: 12px; margin-top: 5px; display: inline-block; }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            margin-top: 10px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        button:hover { background: #005a9e; }
+        .copy-btn {
+            background: #4ec9b0;
+            font-size: 12px;
+            padding: 6px 12px;
+            margin-left: 10px;
+        }
+        .copy-btn:hover { background: #3db899; }
+        .config-code {
+            background: #1e1e1e;
+            border: 1px solid #4ec9b0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .config-code code {
+            color: #ce9178;
+            font-size: 12px;
+            line-height: 1.6;
+            display: block;
+            white-space: pre;
+        }
+        .loading { color: #4ec9b0; font-weight: bold; }
+        .error { color: #f48771; font-weight: bold; }
+        .success { color: #4ec9b0; font-weight: bold; }
+        input { 
+            background: #2d2d30; 
+            border: 1px solid #4ec9b0; 
+            color: #d4d4d4; 
+            padding: 8px; 
+            border-radius: 4px; 
+            font-family: 'Courier New', monospace;
+            width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Generatore Configurazione ANPR</h1>
+        
+        <div class="section">
+            <h2>⚙️ Percorso API</h2>
+            <label>Inserisci il percorso completo dell'API (es: http://192.168.1.253/anpr/api/):</label>
+            <input type="text" id="apiPath" value="http://192.168.1.253/anpr/api/" placeholder="http://localhost/anpr/api/">
+            <button onclick="loadConfig()" style="background: #28a745; padding: 12px 30px; font-size: 16px; margin-top: 10px;">
+                📥 Carica Configurazione dal Server
+            </button>
+        </div>
+
+        <div id="loading" style="display: none; padding: 20px; text-align: center;">
+            <div class="loading">⏳ Caricamento in corso...</div>
+        </div>
+
+        <div id="error" style="display: none; padding: 20px; background: #3d2d2d; border-radius: 5px; border-left: 4px solid #f48771; margin-bottom: 20px;">
+            <div class="error" id="errorMsg"></div>
+            <pre id="errorDetails" style="color: #999; margin-top: 10px; font-size: 12px;"></pre>
+        </div>
+
+        <div id="content" style="display: none;">
+            <!-- INFO SERVER -->
+            <div class="section">
+                <h2>🖥️ Informazioni Server</h2>
+                <div id="serverInfo"></div>
+            </div>
+
+            <!-- PERCORSI ASSOLUTI -->
+            <div class="section">
+                <h2>📁 Percorsi Assoluti (Filesystem)</h2>
+                <div id="paths"></div>
+            </div>
+
+            <!-- CODICE CONFIG GENERATO -->
+            <div class="section">
+                <h2>⚙️ Codice da Aggiungere a /api/config.php</h2>
+                <p style="color: #999; margin-bottom: 15px;">Copia questo blocco e aggiornalo nel tuo config.php:</p>
+                <div class="config-code">
+                    <code id="configCode"></code>
+                </div>
+                <button onclick="copyAllConfig()" style="background: #28a745;">📋 Copia Tutto il Codice</button>
+            </div>
+
+            <!-- ISTRUZIONI -->
+            <div class="section">
+                <h2>📝 Istruzioni</h2>
+                <ol style="margin-left: 20px; line-height: 2;">
+                    <li>Copia il codice qui sopra</li>
+                    <li>Apri il file <code>/api/config.php</code></li>
+                    <li>Aggiorna la sezione "CONFIGURAZIONE PERCORSI" con i valori rilevati</li>
+                    <li>Salva il file</li>
+                    <li>✅ Fatto! Tutti i percorsi sono ora corretti per questo server</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadConfig() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const content = document.getElementById('content');
+            const apiPath = document.getElementById('apiPath').value.trim();
+
+            if (!apiPath) {
+                alert('❌ Inserisci il percorso API');
+                return;
+            }
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            content.style.display = 'none';
+
+            try {
+                const url = apiPath + 'get_config.php';
+                console.log('📡 Caricando da:', url);
+
+                const response = await fetch(url);
+                const text = await response.text();
+
+                console.log('Risposta ricevuta:', text.substring(0, 200));
+
+                // Prova a parsare come JSON
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error(`JSON invalido. Risposta: ${text.substring(0, 300)}`);
+                }
+
+                displayConfig(data);
+                loading.style.display = 'none';
+                content.style.display = 'block';
+
+            } catch (err) {
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                document.getElementById('errorMsg').textContent = '❌ Errore: ' + err.message;
+                document.getElementById('errorDetails').textContent = 'Verifica che:\n1. get_config.php esista in /api/\n2. Il percorso sia corretto\n3. Non ci siano errori PHP';
+                console.error('Errore completo:', err);
+            }
+        }
+
+        function displayConfig(data) {
+            // Server Info
+            let serverHtml = '';
+            for (const [key, value] of Object.entries(data.server_info)) {
+                serverHtml += `
+                    <div class="path-item">
+                        <span class="label">${key}:</span>
+                        <code>${escapeHtml(String(value))}</code>
+                        <button class="copy-btn" onclick="copyToClipboard('${escapeHtml(String(value))}')">📋 Copia</button>
+                    </div>
+                `;
+            }
+            document.getElementById('serverInfo').innerHTML = serverHtml || '<p>Nessun dato</p>';
+
+            // Paths
+            let pathsHtml = '';
+            for (const [key, value] of Object.entries(data.paths)) {
+                const status = value.exists ? 
+                    '<span class="status-ok">✅ OK</span>' : 
+                    '<span class="status-error">❌ NON TROVATO</span>';
+                
+                pathsHtml += `
+                    <div class="path-item">
+                        <span class="label">${key}:</span>
+                        <code>${escapeHtml(value.path)}</code>
+                        ${status}
+                        <button class="copy-btn" onclick="copyToClipboard('${escapeHtml(value.path)}')">📋 Copia</button>
+                    </div>
+                `;
+            }
+            document.getElementById('paths').innerHTML = pathsHtml || '<p>Nessun dato</p>';
+
+            // Config Code
+            let configCode = `// ===== PERCORSI RILEVATI AUTOMATICAMENTE - ${data.timestamp} =====\n`;
+            for (const [key, value] of Object.entries(data.paths)) {
+                configCode += `define('${key}', '${value.path}');\n`;
+            }
+
+            document.getElementById('configCode').textContent = configCode;
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ Copiato negli appunti!');
+            }).catch(() => {
+                alert('❌ Errore nella copia');
+            });
+        }
+
+        function copyAllConfig() {
+            const code = document.getElementById('configCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('✅ Tutto il codice è stato copiato negli appunti!');
+            }).catch(() => {
+                alert('❌ Errore nella copia');
+            });
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>

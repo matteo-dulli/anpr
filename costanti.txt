@@ -1,0 +1,87 @@
+# ==================================================
+# CONFIGURAZIONE FASCE ORARIE E PREZZI PARCHEGGIO
+# ==================================================
+# Formato: CHIAVE = VALORE
+# I commenti iniziano con #
+# Modifica i valori per cambiarli in tutta l'app
+# ==================================================
+
+# DESCRIZIONI FASCE
+TestoF1 = Auto piccola
+TestoF2 = Auto media
+TestoF3 = Auto grande
+TestoF4 = Auto Lusso
+TestoF5 = Furgone
+
+# PREZZI ORARI (€/ora)
+PrezzoF1 = 3.00
+PrezzoF2 = 4.00
+PrezzoF3 = 5.00
+PrezzoF4 = 6.00
+PrezzoF5 = 7.00
+
+# PREZZI GIORNALIERI (€/giorno 24h)
+PrezzoDayF1 = 19.00
+PrezzoDayF2 = 20.00
+PrezzoDayF3 = 25.00
+PrezzoDayF4 = 35.00
+PrezzoDayF5 = 50.00
+
+# TOLLERANZA (minuti sotto i quali non si paga)
+TolleranzaF1 = 5
+TolleranzaF2 = 5
+TolleranzaF3 = 5
+TolleranzaF4 = 5
+TolleranzaF5 = 5
+
+# ORE STANDARD PER CALCOLO TARIFARIO
+Nore = 5
+
+# ABBONAMENTI
+Abbonamento 1 = Mensile
+Abbonamento 2 = Trimestrale
+Abbonamento 4 = Semestrale
+Abbonamento 5 = Annuale
+Abbonamento 6 = Definito
+
+# AUTORIZZATI
+1 = Residente
+2 = Autocarro 
+3 = Forza dell'ordine 
+4 = Emergenza
+5 = Manutentori 
+
+# TESSERESCALARE
+TestoF1S = Auto piccola
+TestoF2S = Auto media
+TestoF3S = Auto grande
+TestoF4S = Auto Lusso
+TestoF5S = Furgone
+
+# ALLARME TESSERESCALARE
+SOGLIA = 20
+
+# PREZZI ORARISCALARE (€/ora)
+PrezzoF1S = 3.00
+PrezzoF2S = 4.00
+PrezzoF3S = 5.00
+PrezzoF4S = 6.00
+PrezzoF5S = 7.00
+
+# LIMITE GIORNI PRESENZA
+LIMITE_GIORNI_PRESENZA = 6
+
+# STAMPANTE TERMICA
+IP =
+PORT =
+USB =
+USB_SHARE =
+PRINTER_NAME = POS-80-Series
+PRINTER_SHARE = \\PC-TICKET\POS-80
+BARCODE = CODE128
+BARCODE_FONT =
+
+# OPERATORI
+01 = Gianni
+02 = Rossi
+03 = Bianchi

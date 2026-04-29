@@ -1,0 +1,1457 @@
+/* ===== RESET ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f5f5f5;
+  color: #333;
+  overflow: hidden;
+}
+
+#headerDateTime {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ===== HEADER ===== */
+/* ===== HEADER ===== */
+.header {
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+  height: 50px;
+  z-index: 10;
+  position: relative;
+  gap: 16px;               /* NEW: un po' di spazio tra blocchi */
+}
+
+/* NEW: assicurati che titolo e status non si restringano */
+.header h1 {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0;               /* NEW: evita extra spazio */
+  white-space: nowrap;     /* NEW: titolo su una riga */
+  flex: 0 0 auto;          /* NEW */
+}
+
+/* FIX: NON deve essere assoluto, altrimenti si sovrappone */
+.header-center {
+  position: static;        /* FIX: era absolute */
+  left: auto;              /* FIX */
+  transform: none;         /* FIX */
+
+  font-size: 14px;
+  font-weight: 600;
+
+  flex: 1 1 auto;          /* NEW: prende lo spazio centrale */
+  min-width: 0;            /* NEW: necessario per ellipsis */
+  text-align: center;      /* NEW: rimane centrato */
+}
+
+#headerDateTime {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+
+  display: inline-block;   /* NEW */
+  max-width: 100%;         /* NEW */
+  white-space: nowrap;     /* NEW */
+  overflow: hidden;        /* NEW */
+  text-overflow: ellipsis; /* NEW: se manca spazio, tronca */
+}
+
+.header-status {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  font-size: 12px;
+
+  flex: 0 0 auto;          /* NEW: non farlo restringere */
+  white-space: nowrap;     /* NEW: resta in riga */
+}
+
+/* (questo blocco dot lo lasciamo com'è) */
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ccc;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.dot.connected {
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
+}
+
+.dot.disconnected {
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ccc;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.dot.connected {
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
+}
+
+.dot.disconnected {
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+/* ===== BARRA DI RICERCA ===== */
+.search-section {
+  background: white;
+  padding: 8px 10px;
+  border-bottom: 1px solid #ddd;
+  flex-shrink: 0;
+}
+
+.search-row-main {
+  display: grid;
+  grid-template-columns: 70px minmax(260px, 1.15fr) 320px minmax(320px, 1fr) 240px;
+  gap: 10px 12px;
+  align-items: end;
+}
+
+/* ogni colonna = label sopra + controllo sotto, con altezze fisse */
+.search-item {
+  display: grid;
+  grid-template-rows: 18px 40px; /* label / controllo */
+  row-gap: 6px;
+  font-size: 11px;
+  min-width: 0;
+}
+
+/* label tutte uguali */
+.search-item label {
+  font-size: 11px;
+  color: #555;
+  font-weight: 700;
+  margin: 0;
+  height: 18px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+/* ===== BARRA DI RICERCA ===== */
+.search-section {
+  background: white;
+  padding: 8px 10px;
+  border-bottom: 1px solid #ddd;
+  flex-shrink: 0;
+}
+
+
+/* ✅ ETICHETTE GRASSETTI E BEN VISIBILI */
+
+
+
+.search-buttons-wrapper {
+  display: flex;
+  gap: 4px;
+}
+
+/* Ricerca targa live */
+.search-plate-container {
+  position: relative;
+}
+
+.search-plate-results {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+  z-index: 20;
+  font-size: 11px;
+}
+
+.search-plate-results.show {
+  display: block;
+}
+
+/* Bottoni base */
+.btn {
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+  background: #667eea;
+  color: #fff;
+}
+
+.btn-small {
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: #22c55e;
+}
+
+.btn-primary:hover {
+  background: #16a34a;
+}
+
+/* nuova targa: input + bottone stessa altezza, bottone non più "alto" */
+.search-item-new-plate > div > input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.search-item-new-plate > div > button {
+  flex: 0 0 120px;
+  height: 40px;
+  padding: 0 12px;       /* FIX: niente padding verticale */
+}
+
+.btn-new-plate:hover {
+  background: #15803d;
+}
+
+/* ===== LAYOUT PRINCIPALE: LISTA | DETTAGLI | IMMAGINE ===== */
+.main-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(370px, 1.5fr) minmax(340px, 390px);
+  gap: 10px;
+  padding: 10px;
+  height: calc(100vh - 50px - 50px);
+  box-sizing: border-box;
+}
+
+/* ===== COLONNA SINISTRA: ELENCO TARGHE ===== */
+.plates-section {
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.plates-section h2 {
+  padding: 8px 10px;
+  background: #f9f9f9;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.plates-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.plates-stats {
+  padding: 6px 8px;
+  background: #f9f9f9;
+  border-top: 1px solid #eee;
+  font-size: 11px;
+  color: #666;
+}
+
+.plate-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.plate-item:hover {
+  background: #f9f9f9;
+}
+
+.plate-item.active {
+  background: #667eea;
+  color: white;
+  font-weight: bold;
+}
+
+.plate-item.manual {
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+}
+
+.plate-item.manual.active {
+  background: #f59e0b;
+  color: white;
+}
+
+/* ===== PASSAGGIO: SFONDO VERDE TENUE ===== */
+.plate-item.passage {
+  background: #dcfce7;
+  border-left: 3px solid #4ade80;
+}
+
+.plate-item.passage.active {
+  background: #4ade80;
+  color: white;
+  font-weight: bold;
+}
+
+/* ===== PASSAGGIO ANNULLATO: SFONDO ROSSO ===== */
+.plate-item.annullato {
+  background: #fca5a5 !important;
+  border-left: 4px solid #dc2626 !important;
+  opacity: 0.8;
+}
+
+.plate-item.annullato.active {
+  background: #dc2626 !important;
+  color: white !important;
+  font-weight: bold !important;
+}
+
+.plate-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.plate-number {
+  font-weight: bold;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.plate-time {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.plate-badge {
+  font-size: 9px;
+  background: rgba(0,0,0,0.1);
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-top: 2px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.plate-delete {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.plate-delete:hover {
+  transform: scale(1.2);
+  color: #ef4444;
+}
+
+/* ===== COLONNA CENTRALE: DETTAGLI ===== */
+.details-section {
+	max-width: 850px;
+  min-width: 370px;
+  flex: 1 1 0px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.details-panel {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+/* Box / form */
+.details-box {
+  background: #f9f9f9;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #eee;
+  margin-bottom: 8px;
+}
+
+/* ===== ACCORDION COME PULSANTI GRANDI ===== */
+.accordion-section {
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  margin-bottom: 8px;
+  overflow: hidden;
+  background: #f9fafb;
+}
+
+/* HEADER = PULSANTE GRANDE TOUCH */
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  background: #e5e7eb;
+  border-bottom: 1px solid #d1d5db;
+  transition: background 0.15s ease, transform 0.05s ease;
+  touch-action: manipulation;
+}
+
+.accordion-header:active {
+  transform: scale(0.99);
+}
+
+.accordion-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.accordion-icon {
+  font-size: 18px;
+  transition: transform 0.15s ease;
+}
+
+.accordion-content {
+  padding: 8px 10px;
+  background: #ffffff;
+}
+
+.accordion-section.open .accordion-header {
+  background: #d1d5db;
+}
+
+/* Form più leggibile */
+.form-group {
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 6px 7px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: inherit;
+  background: white;
+  color: #333;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 45px;
+  max-height: 100px;
+}
+
+.plates-section-header-btn {
+  width: 100%;
+  padding: 8px 10px;
+  background: #f9f9f9;
+  border: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.plates-section-header-btn:hover {
+  background: #e5e7eb;
+}
+
+/* Bottoni ora ingresso/uscita */
+.button-group {
+  display: flex;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.button-group button {
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+  background: #f3f4f6;
+  cursor: pointer;
+}
+
+.button-group button:hover {
+  background: #e5e7eb;
+}
+
+/* Pulsanti Salva / Chiudi */
+.form-buttons {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f9f9f9;
+  border-top: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.btn-save,
+.btn-close,
+.btn-delete {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 11px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-save {
+  background: #4ade80;
+  color: white;
+}
+
+.btn-save:hover {
+  background: #22c55e;
+}
+
+.btn-close {
+  background: #94a3b8;
+  color: white;
+}
+
+.btn-close:hover {
+  background: #64748b;
+}
+
+.btn-delete {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-delete:hover {
+  background: #b91c1c;
+}
+
+/* ===== COLONNA DESTRA: IMMAGINE + META ===== */
+.image-section {
+  flex: 0 0 360px;
+  min-width: 340px;
+  max-width: 410px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Meta targa sopra immagine */
+.image-meta {
+  background: #f9fafb;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  padding: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.image-meta-plate {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.image-meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.image-meta-label {
+  color: #6b7280;
+}
+
+.image-meta-value {
+  font-weight: 600;
+}
+
+/* Box immagine vero e proprio */
+.image-box {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.image-box-inner {
+  width: 100%;
+  min-width: 330px;
+  min-height: 220px;
+  flex: 1;
+  background: #111827;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.image-box-inner img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+/* Vecchia regola generica per sicurezza */
+.image-box img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+/* Messaggi vuoti */
+.empty-state,
+.empty {
+  text-align: center;
+  color: #999;
+  padding: 40px 20px;
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* ===== MODAL IMMAGINE ===== */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 90vw;
+  max-height: 90vh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.details-search {
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.details-search label {
+  font-size: 10px;
+  color: #555;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.details-search .search-plate-container input {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 11px;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #aaa;
+  transition: color 0.2s ease;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  color: #000;
+}
+
+.modal-image {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* ===== TOAST ===== */
+.toast-container {
+  position: fixed;
+  top: 110px;
+  right: 10px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 300px;
+}
+
+.toast {
+  background: white;
+  padding: 12px 15px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+  border-left: 4px solid #667eea;
+}
+
+.toast.success {
+  border-left-color: #4ade80;
+}
+
+.toast.error {
+  border-left-color: #ef4444;
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #bbb;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* MODAL NUOVA TARGA */
+.new-plate-modal {
+  max-width: 400px;
+  width: 90%;
+  align-items: stretch;
+}
+
+.new-plate-modal h2 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+/* ===== MIGLIORIE MENU POSIZIONE ===== */
+#vehiclePosition {
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+#vehiclePosition option {
+  font-size: 13px;
+  padding: 4px 6px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+}
+
+/* Ingrandisci solo Giorni, Ricerca Targa e Ticket nella barra in alto */
+#searchDays,
+#searchPlate,
+#searchTicketInfo {
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  height: 32px;
+  line-height: 16px;
+}
+
+/* Input nuova targa - solo MAIUSCOLE */
+#newPlateInline {
+  text-transform: uppercase;
+}
+
+.ticket-buttons-container {
+  display: grid;
+  grid-template-columns: 180px 180px;
+  gap: 10px;
+  align-items: stretch;
+  height: 40px;
+}
+.btn-emit,
+.btn-reprint {
+  flex: 1;
+  max-width: 180px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-emit {
+  background-color: #22c55e;
+  color: white;
+}
+
+.btn-emit:hover {
+  background-color: #16a34a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.btn-emit:active {
+  transform: translateY(0);
+}
+
+.btn-reprint {
+  background-color: #f97316;
+  color: white;
+}
+
+.btn-reprint:hover {
+  background-color: #ea580c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.btn-reprint:active {
+  transform: translateY(0);
+}
+
+.btn-reprint:disabled {
+  background-color: #d97706;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+#detailsPanel {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    padding: 15px;
+}
+/* ===== PASSAGGI ANNULLATI (ROSSO TENUE) ===== */
+.plate-item.annullato {
+    background: #fca5a5 !important;
+    border-left: 4px solid #dc2626 !important;
+    opacity: 0.85;
+}
+
+.plate-item.annullato.active {
+    background: #dc2626 !important;
+    color: white !important;
+    font-weight: bold !important;
+    opacity: 1;
+}
+
+/* ===== PASSAGGI PAGATI (GIALLO SCURO) ===== */
+.plate-item.pagato {
+    background: #fcd34d !important;
+    border-left: 4px solid #ca8a04 !important;
+    opacity: 0.9;
+}
+
+.plate-item.pagato.active {
+    background: #ca8a04 !important;
+    color: white !important;
+    font-weight: bold !important;
+    opacity: 1;
+}
+.btn-calc {
+  background: #667eea;
+  color: white;
+  padding: 8px 16px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 13px;
+  flex: 1;
+}
+.btn-receipt {
+  background: #22c55e;
+  color: white;
+  padding: 8px 16px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 13px;
+  flex: 1;
+}
+#imageBox, .image-section {
+  min-width: 340px !important;
+  max-width: 410px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.image-box-inner {
+  width: 100%;
+  min-width: 320px;
+  min-height: 200px;
+  background: #111827;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.image-meta {
+  min-width: 320px;
+  /* oppure width: 100%; a seconda del layout, provale entrambe */
+}
+/* Forza larghezza box meta/immagine terza colonna */
+#imageBox, .image-section {
+  min-width: 340px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.image-meta, .image-box-inner {
+  min-width: 320px !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Passaggio: rendi gruppo importi grande, ore/min piccoli */
+.form-group-costo input[type="number"] {
+  font-size: 18px;
+  height: 38px;
+  padding: 0 10px;
+}
+.form-group-small input[type="number"] {
+  width: 45px;
+  min-width: 38px;
+  font-size: 13px;
+  text-align: center;
+  padding: 0;
+}
+/* ---- PASSAGGIO: GRIGLIA CAMPI GRANDE E SPAZIATI + BOTTONI UNIFORMI ---- */
+.passaggio-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.form-group-costo input,
+#passagePrice, #prezzo {
+  font-size: 16px;
+  height: 38px;
+  padding: 0 10px;
+  min-width: 100px;
+  max-width: 140px;
+  text-align: right;
+  background: #f5faf5;
+}
+
+.form-group-small input {
+  width: 50px;
+  min-width: 38px;
+  font-size: 13px;
+  text-align: center;
+  padding: 0;
+  background: #f1f5f9;
+}
+
+.form-group,
+.form-group-costo,
+.form-group-small {
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 0;
+}
+
+/* Spazio bottoni orizzontale */
+.passaggio-buttons-row {
+  display: flex;
+  gap: 18px;
+  margin: 15px 0 0 0;
+  flex-wrap: wrap;
+}
+
+.btn-small, .btn-calc, .btn-receipt {
+  min-width: 80px;
+  height: 36px;
+  font-size: 13px;
+  padding: 6px 18px;
+  border-radius: 4px;
+}
+
+#imageBox, .image-section {
+  min-width: 340px !important;
+  max-width: 410px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.image-meta, .image-box-inner {
+  min-width: 320px !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+.dettagli-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.dettagli-button-row button,
+.dettagli-button-row .btn-small {
+  min-width: 80px;
+  max-width: 180px;
+  height: 36px;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+/* Spinner Giorni/Ore/Minuti: compatti ma ben leggibili */
+#giorni, #ore, #minuti,
+input#giorni, input#ore, input#minuti,
+.form-group input[type="number"]:read-only {
+  width: 43px;      /* <--- ridotto ma aumentato font */
+  min-width: 38px;
+  max-width: 48px;
+  font-size: 16px;
+  height: 34px;
+  text-align: center;
+  padding: 2px 0;
+  background: #fffbe7;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+/* Alcune label potrebbero stringere troppo: riduci il font anche lì */
+.form-group label {
+  font-size: 11px;
+  margin-bottom: 2px;
+  padding-right: 2px;
+  white-space: nowrap;
+}
+.accordion-content {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.header-datetime{
+  color:#fff;
+  font-weight:600;
+  font-size:14px;
+  opacity:0.95;
+
+  /* FIX: evita spostamenti/sovrapposizioni */
+  margin-right: 0;          /* era 18px: ora lo spacing lo gestisce .header gap */
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+}
+.db-status{display:flex;align-items:center;gap:8px;color:#fff;font-weight:600;}
+.db-dot{width:10px;height:10px;border-radius:50%;background:#9ca3af;display:inline-block;}
+.db-dot.ok{background:#22c55e;}      /* verde */
+.db-dot.bad{background:#ef4444;}     /* rosso */
+.db-dot.wait{background:#f59e0b;}    /* arancio */
+/* riga pagamenti/annullamento: non sovrapporre, vai a capo */
+.pay-annull-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px 18px;
+  align-items:center;
+}
+
+.pay-group{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:120px;
+}
+
+.annull-group{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  min-width:260px;
+}
+
+.annull-group input[type="text"]{
+  width:240px;
+  max-width: 100%;
+}
+.search-ticket-container {
+  position: relative;
+}
+
+.ticket-search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 99999;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  display: none;
+  max-height: 280px;
+  overflow-y: auto;
+  min-width: 260px;
+}
+/* ===== Fix layout barra ricerca: evita sovrapposizioni con Ristampa ===== */
+
+/* blocco bottoni ticket (emetti/ristampa) non deve restringersi troppo */
+.ticket-buttons-container{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;          /* se lo spazio è poco, va a capo invece di sovrapporsi */
+  align-items:center;
+}
+
+/* ===== Input ricerca unico (Ticket/Ricevuta/Targa/ID) ===== */
+.search-row-main .search-item input#searchTicketInfo{
+  min-width:240px;         /* evita che si infiltri sotto ristampa */
+  width:280px;             /* puoi aumentare a 320px se vuoi */
+  max-width:100%;
+}
+
+/* ===== Spingi Cerca/Reset a destra ===== */
+.search-buttons-wrapper{
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+  margin-left:auto;        /* chiave: va a destra nella riga */
+}
+
+/* rende l'ultimo search-item (quello con i bottoni) "elasticamente" a destra */
+.search-row-main .search-item:last-child{
+  margin-left:auto;
+}
+
+/* opzionale: su schermi stretti, metti a capo e allinea bene */
+@media (max-width: 1200px){
+  .search-row-main .search-item input#searchTicketInfo{
+    width:100%;
+    min-width:220px;
+  }
+}
+.db-status{
+  position: relative;
+  display:inline-block;
+  width:120px;
+  height:22px;
+  vertical-align:middle;
+}
+.db-status .db-layer{
+  position:absolute;
+  left:0; top:0; right:0; bottom:0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .12s linear;
+}
+.db-status.db-wait .db-wait-layer{opacity:1;}
+.db-status.db-ok .db-ok-layer{opacity:1;}
+.db-status.db-bad .db-bad-layer{opacity:1;}
+
+.db-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.dot-yellow{background:#f7c948;}
+.dot-green{background:#2ecc71;}
+.dot-red{background:#e74c3c;}
+.db-text{white-space:nowrap;font-weight:600;}
+/* ===== ALLINEAMENTO FASCIA RICERCA / FILTRI (tra le 2 linee rosse) ===== */
+
+/* Grid stabile: ogni blocco ha label sopra + controllo sotto */
+.search-row-main{
+  display: grid;
+  grid-template-columns: 90px 260px 330px 1fr 170px; /* giorni | nuova targa | ticket btns | ricerca | cerca/reset */
+  gap: 12px 14px;
+  align-items: end; /* tutti allineati sul fondo (controlli) */
+}
+
+/* Ogni .search-item = colonna con label sopra e controllo sotto */
+.search-item{
+  display: grid;
+  grid-template-rows: 18px auto; /* label / controlli */
+  row-gap: 6px;
+  min-width: 0;
+}
+
+/* controlli tutti alla stessa altezza */
+.search-item input[type="text"],
+.search-item input[type="number"]{
+  height: 40px;
+  line-height: normal;     /* IMPORTANT: meglio di 40px su Firefox */
+  padding: 0 10px;         /* fallback */
+  padding-top: 8px;        /* centra verticalmente */
+  padding-bottom: 8px;     /* centra verticalmente */
+  font-size: 13px;
+  box-sizing: border-box;
+  appearance: auto;        /* mantiene le frecce */
+}
+.search-item select,
+.search-item button {
+  height: 40px;
+  box-sizing: border-box;
+}
+
+/* input coerenti */
+.search-item input[type="text"],
+.search-item input[type="number"]{
+  height: 40px;
+  line-height: normal;
+  padding-left: 10px;
+  padding-right: 10px;
+
+  /* numero era basso -> alzo di 2px */
+  padding-top: 10px;
+  padding-bottom: 6px;
+
+  font-size: 13px;
+  box-sizing: border-box;
+  appearance: auto;  /* mantiene le frecce */
+}
+/* FIX: input number (Giorni) allineato come gli altri */
+.search-item input[type="number"]{
+  height: 40px;
+  line-height: 40px;   /* centra verticalmente il numero */
+  padding: 0 10px;
+  font-size: 13px;
+}
+/* Chrome/Edge: normalizza l'altezza delle frecce */
+.search-item input[type="number"]::-webkit-outer-spin-button,
+.search-item input[type="number"]::-webkit-inner-spin-button{
+  height: 40px;
+  margin: 0;
+}
+
+/* wrapper interni (quelli con style inline) non devono alterare l'altezza */
+.search-item > div {
+  height: 40px;          /* FIX: forza stessa altezza della riga controlli */
+  display: flex;
+  align-items: stretch;  /* FIX: input e button si stirano uguali */
+  gap: 8px;
+  min-width: 0;
+}
+
+
+/* --- Nuova targa: input + bottone stessa altezza --- */
+/* NEW: se dentro hai wrapper flex, allinea bene */
+.search-item > div {
+  min-width: 0;
+}
+
+#newPlateInline{
+  width: 100%;
+  font-size: 13px !important;
+}
+
+/* --- Bottoni ticket: stessa larghezza e altezza --- */
+.ticket-buttons-container{
+  display: grid;
+  grid-template-columns: 170px 170px; /* stessa larghezza */
+  gap: 10px;
+  align-items: center;
+}
+#emitTicketBtn,
+#reprintTicketBtn{
+  height: 40px;
+  width: 180px;
+  padding: 0 14px;       /* FIX: niente padding verticale */
+}
+
+/* --- Ricerca: input full width e allineato --- */
+#searchTicketWrapper input#searchTicketInfo{
+  width: 100%;
+  height: 38px;
+}
+
+/* --- Cerca/Reset: stessa altezza, larghezze coerenti --- */
+.search-buttons-wrapper{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  height: 40px;
+  align-items: stretch;
+}
+#searchBtn, #resetBtn{
+  height: 40px;
+  padding: 0 12px;       /* FIX */
+}
+#searchBtn,
+#resetBtn{
+  height: 38px;
+  min-width: 0;
+}
+
+/* Responsive: se lo schermo è stretto, vai a 2 righe senza “rompere” */
+@media (max-width: 1200px){
+  .search-row-main{
+    grid-template-columns: 120px 1fr 1fr;
+    grid-auto-rows: auto;
+  }
+
+  /* metti la ricerca a tutta riga */
+  #searchTicketWrapper{ grid-column: 1 / -1; }
+  .search-buttons-wrapper{ grid-column: 1 / -1; grid-template-columns: 1fr 1fr; }
+}
+/* Giorni: mantieni le frecce ma rendilo visivamente uguale agli altri */
+#searchDays{
+  font-size: 13px;
+  padding: 0 10px;
+  line-height: normal;
+  appearance: auto;
+}
+/* Wrapper che garantisce stessa altezza percepita anche per input number in Firefox */
+.control-wrap{
+  height: 40px;
+  display: flex;
+  align-items: stretch;
+}
+
+/* L'input riempie il wrapper */
+.control-wrap > input{
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+.plate-badges { margin-left: 8px; }
+.badge { font-size: 14px; margin-left: 6px; }
+.badge-on  { color: #22c55e; }   /* verde */
+.badge-off { color: #9ca3af; }   /* grigio */
+.plate-flags{
+  margin-top: 4px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.plate-flag-icon{
+  font-size: 14px;
+  line-height: 1;
+}
+
+.plate-flag-icon.on{
+  color: #16a34a;   /* verde */
+  filter: none;
+  opacity: 1;
+}
+
+.plate-flag-icon.off{
+  color: #9ca3af;   /* grigio */
+  opacity: 0.9;
+}
+/* --- FIX: colori icone abbonamento/tessera --- */
+.plate-flags .plate-flag-icon.on {
+  color: #16a34a !important;   /* verde */
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.plate-flags .plate-flag-icon.off {
+  color: #9ca3af !important;   /* grigio */
+  opacity: 0.9 !important;
+  filter: grayscale(1) !important;
+}

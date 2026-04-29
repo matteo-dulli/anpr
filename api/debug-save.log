@@ -1,0 +1,323 @@
+Array
+(
+    [passage_id] => 28
+    [Ppaid] => 1
+    [PpayC] => 0
+    [PpayE] => 1
+    [Pannullato] => 1
+    [Pannultxt] => boh
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => 
+    [entry_datetime] => 2026-04-19 12:08:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-19T15:00:56+02:00 Array
+(
+    [passage_id] => 28
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => prova 123
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => 
+    [entry_datetime] => 2026-04-19 12:08:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-19T15:07:22+02:00 Array
+(
+    [passage_id] => 28
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => prova
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => 
+    [entry_datetime] => 2026-04-19 12:08:00
+    [exit_datetime] => 2026-04-19 15:07:00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-19T15:07:38+02:00 Array
+(
+    [passage_id] => 28
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => prova
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => 
+    [entry_datetime] => 2026-04-19 12:08:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-19T15:07:42+02:00 Array
+(
+    [passage_id] => 28
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => prova
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => 
+    [entry_datetime] => 2026-04-19 12:08:00
+    [exit_datetime] => 2026-04-19 15:07:00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-19T15:11:07+02:00 Array
+(
+    [passage_id] => 28
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => ciao
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => 
+    [entry_datetime] => 2026-04-19 12:08:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-19T15:38:51+02:00 Array
+(
+    [passage_id] => 28
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => tttttt
+    [invoice_price] => 12.00
+    [fascia] => F1
+    [Pticket_code] => T20260419-120826-0F831
+    [entry_datetime] => 2026-04-19 12:08:00
+    [exit_datetime] => 2026-04-19 15:38:00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-19T16:17:29+02:00 Array
+(
+    [passage_id] => 25
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => andato via
+    [invoice_price] => 19.00
+    [fascia] => F1
+    [Pticket_code] => T20260419-104215-D151B
+    [entry_datetime] => 2026-04-19 10:42:00
+    [exit_datetime] => 2026-04-19 16:16:00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-19T18:12:04+02:00 Array
+(
+    [passage_id] => 29
+    [Ppaid] => 1
+    [PpayC] => 0
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => 
+    [invoice_price] => 6.00
+    [fascia] => F1
+    [Pticket_code] => T20260419-163540-BA537
+    [entry_datetime] => 2026-04-19 16:35:00
+    [exit_datetime] => 2026-04-19 18:11:00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-19T21:27:35+02:00 Array
+(
+    [passage_id] => 30
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 0
+    [Pannultxt] => 
+    [invoice_price] => 15.00
+    [fascia] => F1
+    [Pticket_code] => T20260419-163545-4F7F8
+    [entry_datetime] => 2026-04-19 16:35:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-20T23:48:02+02:00 Array
+(
+    [passage_id] => 43
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 0
+    [Pannultxt] => 
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => T20260420-194100-B2A39
+    [entry_datetime] => 2026-04-20 19:41:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-20T23:50:33+02:00 Array
+(
+    [passage_id] => 44
+    [Ppaid] => 0
+    [PpayC] => 0
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => andato via
+    [invoice_price] => 0.00
+    [fascia] => F1
+    [Pticket_code] => T20260420-223357-40250
+    [entry_datetime] => 2026-04-20 22:33:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-21T09:37:38+02:00 Array
+(
+    [passage_id] => 42
+    [Ppaid] => 0
+    [PpayC] => 0
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => bo
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => T20260420-194059-CD7AC
+    [entry_datetime] => 2026-04-20 19:40:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-21T15:10:29+02:00 Array
+(
+    [passage_id] => 45
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 0
+    [Pannultxt] => 
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => T20260421-122355-938BA
+    [entry_datetime] => 2026-04-21 12:23:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-21T15:10:35+02:00 Array
+(
+    [passage_id] => 45
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 0
+    [Pannultxt] => 
+    [invoice_price] => 9.00
+    [fascia] => F1
+    [Pticket_code] => T20260421-122355-938BA
+    [entry_datetime] => 2026-04-21 12:23:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-21T15:14:41+02:00 Array
+(
+    [passage_id] => 46
+    [Ppaid] => 0
+    [PpayC] => 0
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => boh
+    [invoice_price] => 0.00
+    [fascia] => F1
+    [Pticket_code] => T20260421-122357-8429B
+    [entry_datetime] => 2026-04-21 12:23:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-21T15:14:45+02:00 Array
+(
+    [passage_id] => 46
+    [Ppaid] => 0
+    [PpayC] => 0
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => boh
+    [invoice_price] => 0.00
+    [fascia] => F1
+    [Pticket_code] => T20260421-122357-8429B
+    [entry_datetime] => 2026-04-21 12:23:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-21T15:29:31+02:00 Array
+(
+    [passage_id] => 46
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 0
+    [Pannultxt] => 
+    [invoice_price] => 12.00
+    [fascia] => F1
+    [Pticket_code] => T20260421-122357-8429B
+    [entry_datetime] => 2026-04-21 12:23:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-21T15:33:25+02:00 Array
+(
+    [passage_id] => 48
+    [Ppaid] => 0
+    [PpayC] => 0
+    [PpayE] => 0
+    [Pannullato] => 1
+    [Pannultxt] => bla bla
+    [invoice_price] => 0.00
+    [fascia] => F1
+    [Pticket_code] => T20260421-122359-C6FE6
+    [entry_datetime] => 2026-04-21 12:23:00
+    [exit_datetime] =>  :00
+    [info] => 
+    [note] => 
+)
+
