@@ -13,30 +13,15 @@ $response = ['success' => false, 'message' => '', 'data' => []];
 try {
     $db = getDatabaseConnection();
 
-    // Crea tabella se non esiste
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS turni_sessioni (
-            id            INT AUTO_INCREMENT PRIMARY KEY,
-            numero_turno  INT NOT NULL DEFAULT 0,
-            operatore_cod VARCHAR(50) NOT NULL,
-            stato         ENUM('online','offline') DEFAULT 'online',
-            inizio        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            fine          TIMESTAMP NULL,
-            ticket_emessi          INT DEFAULT 0,
-            ticket_pagati_contanti INT DEFAULT 0,
-            ticket_pagati_online   INT DEFAULT 0,
-            ticket_annullati       INT DEFAULT 0,
-            ricevute               INT DEFAULT 0,
-            importo_contante       DECIMAL(10,2) DEFAULT 0,
-            importo_online         DECIMAL(10,2) DEFAULT 0,
-            importo_totale         DECIMAL(10,2) DEFAULT 0,
-            file_path     VARCHAR(255) NULL,
-            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_operatore (operatore_cod),
-            INDEX idx_stato (stato),
-            INDEX idx_inizio (inizio)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
+    // Controlla se la tabella esiste prima di interrogarla
+    $tableCheck = $db->query("SHOW TABLES LIKE 'turni_sessioni'");
+    if ($tableCheck->rowCount() === 0) {
+        // Tabella non ancora creata (nessun login ancora effettuato)
+        $response['success'] = true;
+        $response['data']    = [];
+        echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        exit;
+    }
 
     $limite = date('Y-m-d H:i:s', strtotime('-30 days'));
 

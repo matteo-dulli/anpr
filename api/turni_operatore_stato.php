@@ -15,14 +15,22 @@ try {
     $db = getDatabaseConnection();
 
     // Prima cerca in turni_sessioni (tabella sessioni singole)
-    $stmt = $db->query("
-        SELECT id, operatore_cod, stato, inizio, numero_turno
-        FROM turni_sessioni
-        WHERE stato = 'online'
-        ORDER BY inizio DESC
-        LIMIT 1
-    ");
-    $sessione = $stmt->fetch(PDO::FETCH_ASSOC);
+    $sessione = null;
+    try {
+        $tableCheck = $db->query("SHOW TABLES LIKE 'turni_sessioni'");
+        if ($tableCheck->rowCount() > 0) {
+            $stmt = $db->query("
+                SELECT id, operatore_cod, stato, inizio, numero_turno
+                FROM turni_sessioni
+                WHERE stato = 'online'
+                ORDER BY inizio DESC
+                LIMIT 1
+            ");
+            $sessione = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+    } catch (Exception $e) {
+        // Tabella non disponibile, ignora
+    }
 
     if ($sessione) {
         $response['success'] = true;
@@ -35,25 +43,29 @@ try {
         ];
     } else {
         // Fallback: controlla operatori_turni (tabella legacy)
-        $stmt2 = $db->query("
-            SELECT operatore_cod, stato, inizio_turno
-            FROM operatori_turni
-            WHERE stato = 'online'
-            LIMIT 1
-        ");
-        $turno = $stmt2->fetch(PDO::FETCH_ASSOC);
+        try {
+            $stmt2 = $db->query("
+                SELECT operatore_cod, stato, inizio_turno
+                FROM operatori_turni
+                WHERE stato = 'online'
+                LIMIT 1
+            ");
+            $turno = $stmt2->fetch(PDO::FETCH_ASSOC);
 
-        if ($turno) {
-            $response['success'] = true;
-            $response['data']    = [
-                'operatore_cod' => $turno['operatore_cod'],
-                'stato'         => 'online',
-                'inizio_turno'  => $turno['inizio_turno'],
-                'id_sessione'   => null,
-                'numero_turno'  => null
-            ];
+            if ($turno) {
+                $response['success'] = true;
+                $response['data']    = [
+                    'operatore_cod' => $turno['operatore_cod'],
+                    'stato'         => 'online',
+                    'inizio_turno'  => $turno['inizio_turno'],
+                    'id_sessione'   => null,
+                    'numero_turno'  => null
+                ];
+            }
+            // else: nessun turno aperto → success=false, data=null
+        } catch (Exception $e) {
+            // Tabella non disponibile
         }
-        // else: nessun turno aperto → success=false, data=null
     }
 
 } catch (Exception $e) {
