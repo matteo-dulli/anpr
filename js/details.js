@@ -2440,6 +2440,12 @@ try {
 // ✅ PATCH DEFINITIVA: handleSave (soft-fail se manca ticket)
 // ===============================
 window.handleSave = async function () {
+  // 🔒 BLOCCO TURNO: non si può salvare con turno chiuso
+  if (typeof window.isTurnoAttivo === 'function' && !window.isTurnoAttivo()) {
+    showToast('❌ Turno chiuso! Aprire turno per continuare.', 'error', 3500);
+    return;
+  }
+
   const type = (typeof getOpenSheetType === 'function') ? getOpenSheetType() : 'unknown';
 
   try {

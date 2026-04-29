@@ -302,6 +302,12 @@ window.Modulo5.load = async function loadModulo5(container, plateNumber) {
 };
 
 window.Modulo5.ricarica = async function ricaricaModulo5(container, plateNumber) {
+  // 🔒 BLOCCO TURNO
+  if (typeof window.isTurnoAttivo === 'function' && !window.isTurnoAttivo()) {
+    if (typeof showToast === 'function') showToast('❌ Turno chiuso! Aprire turno per continuare.', 'error', 3000);
+    return;
+  }
+
   const msg = container.querySelector('#m5_msg');
   const importo = Number(container.querySelector('#m5_importo')?.value || 0);
 
@@ -330,6 +336,12 @@ window.Modulo5.ricarica = async function ricaricaModulo5(container, plateNumber)
 };
 
 window.Modulo5.generaNuova = async function generaNuovaModulo5(container, plateNumber) {
+  // 🔒 BLOCCO TURNO
+  if (typeof window.isTurnoAttivo === 'function' && !window.isTurnoAttivo()) {
+    if (typeof showToast === 'function') showToast('❌ Turno chiuso! Aprire turno per continuare.', 'error', 3000);
+    return;
+  }
+
   const msg = container.querySelector('#m5_msg');
   if (msg) msg.textContent = 'Creazione nuova tessera...';
 

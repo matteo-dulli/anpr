@@ -821,6 +821,12 @@ function initInlineNewPlate() {
     }
 
     const create = async () => {
+        // 🔒 BLOCCO TURNO: non si possono inserire targhe con turno chiuso
+        if (typeof window.isTurnoAttivo === 'function' && !window.isTurnoAttivo()) {
+            showToast('❌ Non puoi inserire targhe con turno chiuso!', 'error', 3500);
+            return;
+        }
+
         let plateNumber = (input.value || '').trim().toUpperCase();
 
         if (!plateNumber) {
