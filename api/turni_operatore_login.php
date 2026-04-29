@@ -70,8 +70,8 @@ try {
     if (!$existing) {
         // ✅ CORRETTO: INSERT senza colonna 'nome' (non esiste nella tabella)
         $ins = $db->prepare("
-            INSERT INTO operatori_turni (operatore_cod, stato, inizio_turno, login_time)
-            VALUES (?, 'online', ?, ?)
+            INSERT INTO operatori_turni (operatore_cod, stato, inizio_turno, login_time, created_at, updated_at)
+            VALUES (?, 'online', ?, ?, NOW(), NOW())
         ");
         $ins->execute([$operatore_cod, $now, $now]);
     } else {
