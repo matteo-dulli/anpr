@@ -54,6 +54,7 @@ try {
     // datetime entrata ticket_printed robusto (fallback created_at)
     $tpEntryDT = "COALESCE(tp.entry_datetime, tp.created_at)";
 
+    // ✅ FIX: JOIN ora accetta sia Tticket_code (targhe) che Pticket_code (passaggi)
     $sql = "
       SELECT
         -- ticket_printed nel range (debug)
@@ -64,17 +65,19 @@ try {
         ) AS tickets_tp_range,
 
         -- presenti: ticket_printed nel range SENZA ricevuta in cassa e non annullati
+        -- ✅ IMPORTANTE: gestisce sia targhe (Tticket_code) che passaggi (Pticket_code)
         SUM(CASE
           WHEN TRIM(COALESCE(tp.ticket_code,'')) <> ''
            AND $tpEntryDT >= :fromDT2
            AND COALESCE(c.Tannullato, 0) = 0
+           AND COALESCE(c.Pannullato, 0) = 0
            AND TRIM(COALESCE(c.invoice_code, '')) = ''
           THEN 1 ELSE 0 END
         ) AS presenti_t
 
       FROM tickets_printed tp
       LEFT JOIN cassa c
-        ON c.Tticket_code = tp.ticket_code
+        ON c.Tticket_code = tp.ticket_code OR c.Pticket_code = tp.ticket_code
     ";
 
     $stmt = $db->prepare($sql);
