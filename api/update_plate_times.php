@@ -20,27 +20,27 @@ try {
     $exitDate = isset($data['exit_date']) && $data['exit_date'] !== '' ? $data['exit_date'] : null;
     $exitTime = isset($data['exit_time']) && $data['exit_time'] !== '' ? $data['exit_time'] : null;
     $price = isset($data['price']) ? floatval($data['price']) : 0;
-    $fascia = isset($data['fascia']) ? $data['fascia'] : 'F1';
-
-    console.log('💾 update_plate_times:', { plateId, entryDate, entryTime, exitDate, exitTime, price, fascia });
+    $fascia = isset($data['fascia']) ? $data['fascia'] : null;
 
     // ===== INIZIA TRANSAZIONE =====
     $db->beginTransaction();
 
-    // ===== 1. AGGIORNA TICKET CON INGRESSO/USCITA =====
+    // ===== 1. AGGIORNA TICKET CON INGRESSO/USCITA/FASCIA =====
     $stmt = $db->prepare("
         INSERT INTO tickets (
             plate_id,
             entry_date,
             entry_time,
             exit_date,
-            exit_time
-        ) VALUES (?, ?, ?, ?, ?)
+            exit_time,
+            fascia
+        ) VALUES (?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             entry_date = VALUES(entry_date),
             entry_time = VALUES(entry_time),
             exit_date = VALUES(exit_date),
-            exit_time = VALUES(exit_time)
+            exit_time = VALUES(exit_time),
+            fascia = COALESCE(VALUES(fascia), fascia)
     ");
 
     $stmt->execute([
@@ -48,7 +48,8 @@ try {
         $entryDate,
         $entryTime,
         $exitDate,
-        $exitTime
+        $exitTime,
+        $fascia
     ]);
 
     // ===== 2. AGGIORNA CASSA (se esiste record) =====
