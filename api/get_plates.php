@@ -55,7 +55,7 @@ $sqlPlates = "
         COALESCE(c.Tannullato, 0)   as Tannullato,
         COALESCE(c.Tannultxt, '')   as Tannultxt,
         COALESCE(c.prezzo, 0)       as prezzo,
-        COALESCE(c.fascia, '')      as fascia,
+        COALESCE(c.fascia, tk.fascia, tp.fascia, '')      as fascia,
         COALESCE(c.invoice_code, '') as invoice_code,
 
         -- ✅ NEW: abbonamento attivo
@@ -91,6 +91,7 @@ $sqlPlates = "
                 GROUP BY plate_id
             ) tmax ON tp.plate_id = tmax.plate_id AND tp.id = tmax.maxid
         ) tp ON p.id = tp.plate_id
+        LEFT JOIN tickets tk ON tk.plate_id = p.id
         LEFT JOIN cassa c ON c.Tticket_code = tp.ticket_code
 
         -- ✅ NEW (AGGIUNTA): join immagini (se esiste 1 sola immagine per plate_id è ok)

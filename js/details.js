@@ -458,7 +458,8 @@ async function savePlateToCassaIfTicketExistsSoft() {
     entry_date: document.getElementById('entryDate')?.value || null,
     entry_time: document.getElementById('entryTime')?.value || null,
     exit_date: document.getElementById('exitDate')?.value || null,
-    exit_time: document.getElementById('exitTime')?.value || null
+    exit_time: document.getElementById('exitTime')?.value || null,
+    fascia: (window.currentPlate?.fascia || '').toString().trim() || null
   };
 
   const resp = await fetch(`${API_BASE}/save_ticket.php`, {

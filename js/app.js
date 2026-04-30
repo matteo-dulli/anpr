@@ -918,6 +918,87 @@ function initInlineNewPlate() {
     });
 }
 
+// ================== FASCIA POPUP ==================
+/**
+ * Mostra un popup per la selezione della fascia tarifaria.
+ * Ritorna una Promise<string|null>: la fascia selezionata (es: 'F1') oppure null se annullato.
+ */
+function showFasciaPopup(defaultFascia) {
+    return new Promise((resolve) => {
+        // Lista fasce da costanti (F1-F5)
+        const fasce = [
+            { id: 'F1', label: window.COSTANTI?.TestoF1 || 'Auto piccola' },
+            { id: 'F2', label: window.COSTANTI?.TestoF2 || 'Auto media' },
+            { id: 'F3', label: window.COSTANTI?.TestoF3 || 'Auto grande' },
+            { id: 'F4', label: window.COSTANTI?.TestoF4 || 'Auto Lusso' },
+            { id: 'F5', label: window.COSTANTI?.TestoF5 || 'Furgone' },
+        ];
+        const def = defaultFascia || 'F1';
+
+        // Rimuovi popup precedente se esiste
+        const existing = document.getElementById('fasciaPopupModal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'fasciaPopupModal';
+        modal.className = 'modal show';
+        modal.style.cssText = 'z-index:9999;';
+
+        const optionsHtml = fasce.map(f => `
+            <label style="display:flex;align-items:center;padding:10px 12px;border:2px solid ${f.id === def ? '#10b981' : '#e5e7eb'};
+                border-radius:8px;cursor:pointer;background:${f.id === def ? '#ecfdf5' : '#fff'};transition:all 0.15s;"
+                id="fasciaLbl_${f.id}">
+                <input type="radio" name="fasciaSelect" value="${f.id}" ${f.id === def ? 'checked' : ''}
+                    style="margin-right:10px;accent-color:#10b981;">
+                <span style="font-weight:600;color:#1f2937;">${f.id}</span>
+                <span style="margin-left:8px;color:#4b5563;">— ${f.label}</span>
+            </label>
+        `).join('');
+
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width:420px;width:95vw;gap:0;align-items:stretch;">
+                <h3 style="margin:0 0 16px;color:#1f2937;font-size:1.1rem;">📋 Seleziona Fascia Tarifaria</h3>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+                    ${optionsHtml}
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button id="fasciaPopupCancel" class="btn" style="background:#e5e7eb;color:#374151;">Annulla</button>
+                    <button id="fasciaPopupConfirm" class="btn btn-primary" style="background:#10b981;">✅ Conferma</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Highlight on click
+        modal.querySelectorAll('input[name="fasciaSelect"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                modal.querySelectorAll('label[id^="fasciaLbl_"]').forEach(lbl => {
+                    lbl.style.borderColor = '#e5e7eb';
+                    lbl.style.background = '#fff';
+                });
+                const lbl = document.getElementById('fasciaLbl_' + radio.value);
+                if (lbl) { lbl.style.borderColor = '#10b981'; lbl.style.background = '#ecfdf5'; }
+            });
+        });
+
+        document.getElementById('fasciaPopupConfirm').onclick = () => {
+            const selected = modal.querySelector('input[name="fasciaSelect"]:checked');
+            modal.remove();
+            resolve(selected ? selected.value : def);
+        };
+
+        document.getElementById('fasciaPopupCancel').onclick = () => {
+            modal.remove();
+            resolve(null);
+        };
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) { modal.remove(); resolve(null); }
+        });
+    });
+}
+
 // ================== EMETTI TICKET ==================
 async function emitTicket() {
     console.log("emitTicket CALLED", { selectedPlateId, selectedIsPassage }, new Error().stack);
@@ -925,6 +1006,7 @@ async function emitTicket() {
         // ✅ SE NULLA È SELEZIONATO, COMPORTATI COME PASSAGGIO (plate_id = 0)
         let plateId = 0;
         let isPassageMode = true;
+        let selectedFascia = null;
 
         // ✅ SE È UNA TARGA, CONTROLLA SE HA GIÀ UN TICKET
         if (selectedPlateId && selectedPlateId !== null && selectedPlateId !== undefined && !selectedIsPassage) {
@@ -937,15 +1019,46 @@ async function emitTicket() {
 
             plateId = selectedPlateId;
             isPassageMode = false;
+
+            // ✅ SE HA TESSERA PREPAGATA ATTIVA: usa fascia dalla tessera automaticamente
+            if (plate && plate.tessera_attiva) {
+                try {
+                    const plateNumber = (plate.plate_corrected || plate.plate_number || '').trim();
+                    const tesseraResponse = await fetch(`${API_BASE}/modulo5_tessera_get.php?plate_number=${encodeURIComponent(plateNumber)}&t=${Date.now()}`, { cache: 'no-store' });
+                    const tesseraJson = await tesseraResponse.json();
+                    if (tesseraJson.success && tesseraJson.data && tesseraJson.data.fascias) {
+                        selectedFascia = tesseraJson.data.fascias;
+                        console.log('💳 Fascia da tessera prepagata:', selectedFascia);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Errore caricamento tessera fascia:', e);
+                }
+            }
+
+            // ✅ SE NON HA TESSERA O FASCIA NON TROVATA: chiedi all'utente
+            if (!selectedFascia) {
+                selectedFascia = await showFasciaPopup('F1');
+                if (!selectedFascia) {
+                    showToast('❌ Emissione ticket annullata', 'warning', 2000);
+                    return;
+                }
+            }
         }
 
         // ✅ Se è un passaggio selezionato o nulla, crea nuovo passaggio (plate_id = 0)
         if (selectedIsPassage || !selectedPlateId) {
             plateId = 0;
             isPassageMode = true;
+
+            // ✅ Per i passaggi: chiedi sempre la fascia
+            selectedFascia = await showFasciaPopup('F1');
+            if (!selectedFascia) {
+                showToast('❌ Emissione ticket annullata', 'warning', 2000);
+                return;
+            }
         }
 
-        console.log('🎫 emitTicket: plateId =', plateId, 'isPassageMode =', isPassageMode);
+        console.log('🎫 emitTicket: plateId =', plateId, 'isPassageMode =', isPassageMode, 'fascia =', selectedFascia);
 
         showToast('⏳ Emissione ticket in corso...', 'info', 2000);
 
@@ -954,6 +1067,7 @@ async function emitTicket() {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     plate_id: plateId,
+    fascia: selectedFascia || 'F1',
 
     // ✅ NEW: per targhe manuali, usa l'ingresso inserito in scheda (se presente)
     // Se i campi non esistono o sono vuoti, il backend userà il fallback (date_detected).
@@ -1011,7 +1125,8 @@ async function emitTicket() {
                         plate_id: selectedPlateId,
                         plate_number: plateNumber,
                         ticket_code: data.ticket_code,
-                        ticket_info: ticketInfo
+                        ticket_info: ticketInfo,
+                        fascia: selectedFascia || data.fascia || ''
                     })
                 });
             }, 300);

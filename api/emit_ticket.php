@@ -14,6 +14,10 @@ try {
     $raw = file_get_contents('php://input');
     $body = $raw ? json_decode($raw, true) : [];
     $plateId = isset($body['plate_id']) ? (int)$body['plate_id'] : 0;
+    $fascia  = isset($body['fascia']) ? trim((string)$body['fascia']) : 'F1';
+    if (!in_array($fascia, ['F1', 'F2', 'F3', 'F4', 'F5'])) {
+        $fascia = 'F1';
+    }
 $entry_date = isset($body['entry_date']) ? trim((string)$body['entry_date']) : '';
 $entry_time = isset($body['entry_time']) ? trim((string)$body['entry_time']) : '';
 
@@ -79,14 +83,16 @@ if ($isManualPlate && $bodyEntryDate !== '' && $bodyEntryTime !== '') {
             ticket_code,
             plate_id,
             plate_number,
-            entry_datetime
-        ) VALUES (?, ?, ?, ?)
+            entry_datetime,
+            fascia
+        ) VALUES (?, ?, ?, ?, ?)
     ");
     $stmt->execute([
         $ticketCode,
         $plateId ?: null,
         $plateNumber,
-        $entryDateTime
+        $entryDateTime,
+        $fascia
     ]);
 
     $printedId = (int)$db->lastInsertId();
@@ -99,14 +105,16 @@ if ($isManualPlate && $bodyEntryDate !== '' && $bodyEntryTime !== '') {
                 ticket_printed_id,
                 ticket_code,
                 entry_datetime,
+                fascia,
                 note
-            ) VALUES (?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
             $printedId,
             $ticketCode,
             $entryDateTime,
+            $fascia,
             null
         ]);
 
@@ -115,6 +123,13 @@ if ($isManualPlate && $bodyEntryDate !== '' && $bodyEntryTime !== '') {
         // ✅ SALVA passage_id in tickets_printed (OBBLIGATORIO)
         $upd = $db->prepare("UPDATE tickets_printed SET passage_id = ? WHERE id = ?");
         $upd->execute([$passageId, $printedId]);
+    } else {
+        // ===== 5c. TARGA: SINCRONIZZA fascia SU tickets =====
+        // Aggiorna il record tickets per questa targa con la fascia selezionata.
+        // Se il record non esiste ancora, verrà creato con fascia dalla successiva
+        // chiamata a update_ticket.php (emitTicket() in app.js lo chiama dopo questo).
+        $stmtUpdFascia = $db->prepare("UPDATE tickets SET fascia = ? WHERE plate_id = ? LIMIT 1");
+        $stmtUpdFascia->execute([$fascia, $plateId]);
     }
 
     // ===== 6. PREPARA DATI FORMATTATI =====
@@ -198,6 +213,7 @@ if ($isManualPlate && $bodyEntryDate !== '' && $bodyEntryTime !== '') {
         'entry_datetime' => $entryDateTime,
         'entry_date_it'  => $entryDate,
         'entry_time_it'  => $entryTime,
+        'fascia'         => $fascia,
         'passage_id'     => $passageId,
         'garage'         => [
             'ragione_sociale' => $garage['ragione_sociale'],

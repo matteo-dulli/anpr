@@ -17,6 +17,9 @@ try {
     $TpayC      = isset($body['TpayC'])      ? (int)$body['TpayC']      : 0;
     $TpayE      = isset($body['TpayE'])      ? (int)$body['TpayE']      : 0;
 
+    // ✅ fascia: usare quella passata dal frontend, oppure leggere da tickets_printed
+    $fascia     = isset($body['fascia']) ? trim((string)$body['fascia']) : null;
+
     // ✅ NEW: ingresso (da scheda targa) -> cassa.Tentry_date / cassa.Tentry_time
     $entryDate  = isset($body['entry_date']) ? $body['entry_date'] : null;
     $entryTime  = isset($body['entry_time']) ? $body['entry_time'] : null;
@@ -64,6 +67,20 @@ try {
 
     $ticketCode = $ticket['ticket_code'];
 
+    // ✅ Se fascia non fornita dal frontend, leggila da tickets_printed
+    if (empty($fascia)) {
+        $stmtFascia = $db->prepare("SELECT fascia FROM tickets_printed WHERE plate_id = ? ORDER BY id DESC LIMIT 1");
+        $stmtFascia->execute([$plateId]);
+        $rowFascia = $stmtFascia->fetch(PDO::FETCH_ASSOC);
+        if ($rowFascia && !empty($rowFascia['fascia'])) {
+            $fascia = $rowFascia['fascia'];
+        }
+    }
+    // Normalizza fascia
+    if (!in_array($fascia, ['F1', 'F2', 'F3', 'F4', 'F5'])) {
+        $fascia = null;
+    }
+
     // PATCH: Cerca la riga cassa per esatto Tplate_id, Tticket_code!
     $stmtCassa = $db->prepare("SELECT idcassa FROM cassa WHERE Tplate_id = ? AND Tticket_code = ? LIMIT 1");
     $stmtCassa->execute([$plateId, $ticketCode]);
@@ -85,6 +102,7 @@ try {
             Tentry_time = ?,
             Texit_date = ?,
             Texit_time = ?,
+            fascia = COALESCE(?, fascia),
             updated_at = NOW()
             WHERE idcassa = ?");
 
@@ -92,6 +110,7 @@ try {
             $Tannullato, $Tannultxt, $Tpaid, $TpayC, $TpayE,
             $entryDate, $entryTime,
             $exitDate, $exitTime,
+            $fascia,
             $row['idcassa']
         ]);
 
@@ -105,19 +124,21 @@ try {
         ];
     } else {
         // INSERT
-        // ✅ NEW: include anche ingresso
+        // ✅ NEW: include anche ingresso e fascia
         $stmtIns = $db->prepare("
             INSERT INTO cassa (
                 Tplate_id, Tticket_code,
                 Tannullato, Tannultxt, Tpaid, TpayC, TpayE,
                 Tentry_date, Tentry_time,
                 Texit_date, Texit_time,
+                fascia,
                 created_at, updated_at
             ) VALUES (
                 ?, ?,
                 ?, ?, ?, ?, ?,
                 ?, ?,
                 ?, ?,
+                ?,
                 NOW(), NOW()
             )
         ");
@@ -125,7 +146,8 @@ try {
             $plateId, $ticketCode,
             $Tannullato, $Tannultxt, $Tpaid, $TpayC, $TpayE,
             $entryDate, $entryTime,
-            $exitDate, $exitTime
+            $exitDate, $exitTime,
+            $fascia
         ]);
 
         $response['success'] = true;
@@ -136,6 +158,12 @@ try {
             'ticket_code' => $ticketCode,
             'action' => 'insert'
         ];
+    }
+
+    // ✅ Sincronizza fascia su tickets (se disponibile)
+    if (!empty($fascia)) {
+        $stmtSyncFascia = $db->prepare("UPDATE tickets SET fascia = ? WHERE plate_id = ? LIMIT 1");
+        $stmtSyncFascia->execute([$fascia, $plateId]);
     }
 
 } catch (Exception $e) {

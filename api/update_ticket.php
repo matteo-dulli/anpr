@@ -49,6 +49,12 @@ try {
     $ticketTo           = $getDateValue($data['ticket_to'] ?? '');
     $ticketBalance      = (float)($data['ticket_balance'] ?? 0.00);
 
+    // ✅ fascia: se non vuota, verrà scritta su tickets.fascia
+    $fascia             = isset($data['fascia']) ? trim((string)$data['fascia']) : '';
+    if (!in_array($fascia, ['F1', 'F2', 'F3', 'F4', 'F5'])) {
+        $fascia = '';
+    }
+
     // ✅ CAMPI PER TABELLA CASSA (ingresso/uscita)
     $Tentry_date        = $getDateValue($data['Tentry_date'] ?? '');
     $Tentry_time        = $getDateValue($data['Tentry_time'] ?? '');
@@ -110,8 +116,9 @@ try {
             ticket_from,
             ticket_to,
             ticket_balance,
-            authorized_vehicle
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            authorized_vehicle,
+            fascia
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             ticket_info        = VALUES(ticket_info),
             vehicle_type       = VALUES(vehicle_type),
@@ -131,7 +138,8 @@ try {
             ticket_from        = VALUES(ticket_from),
             ticket_to          = VALUES(ticket_to),
             ticket_balance     = VALUES(ticket_balance),
-            authorized_vehicle = VALUES(authorized_vehicle)
+            authorized_vehicle = VALUES(authorized_vehicle),
+            fascia             = CASE WHEN VALUES(fascia) != '' THEN VALUES(fascia) ELSE fascia END
     ");
 
     $stmt->execute([
@@ -154,7 +162,8 @@ try {
         $ticketFrom,
         $ticketTo,
         $ticketBalance,
-        $authorizedVehicle
+        $authorizedVehicle,
+        $fascia ?: null
     ]);
 
     // ===== 3b. SALVA/AGGIORNA ticket_code IN tickets_printed =====
