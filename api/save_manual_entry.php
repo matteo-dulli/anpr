@@ -70,15 +70,15 @@ try {
         throw new Exception("Ricevuta già emessa: ingresso non modificabile");
     }
 
-    // 4) Salva su tickets (1 riga per plate_id)
+    // 4) Salva su tickets (1 riga per plate_id) CON fascia NULL
     // Nota: la tua tabella tickets è unica per plate_id (OK)
     $db->beginTransaction();
 
     // Se la riga tickets non esiste ancora, la creiamo minimal
     // (in modo conservativo: NON tocchiamo altri campi)
     $stmt = $db->prepare("
-        INSERT INTO tickets (plate_id, entry_date, entry_time)
-        VALUES (?, ?, ?)
+        INSERT INTO tickets (plate_id, entry_date, entry_time, fascia)
+        VALUES (?, ?, ?, NULL)
         ON DUPLICATE KEY UPDATE
             entry_date = VALUES(entry_date),
             entry_time = VALUES(entry_time)
@@ -94,7 +94,7 @@ try {
     $stmt->execute([$entryDateTime, $tpId]);
 
     // 6) (Opzionale) Se esiste una riga cassa senza invoice_code, aggiorna Tentry_*
-    // NON facciamo INSERT qui per non creare righe cassa “fantasma”
+    // NON facciamo INSERT qui per non creare righe cassa "fantasma"
     if ($cassa) {
         $stmt = $db->prepare("
             UPDATE cassa
