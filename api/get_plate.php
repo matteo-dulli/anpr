@@ -83,7 +83,7 @@ try {
 
             /* riga cassa */
             COALESCE(c.invoice_code, NULL) as invoice_code,
-            COALESCE(c.fascia, NULL)       as fascia,
+            COALESCE(t.fascia, c.fascia, NULL) as fascia,
             COALESCE(c.prezzo, 0)          as prezzo,
             COALESCE(c.invoice_entry_datetime, NULL) as invoice_entry_datetime,
             COALESCE(c.invoice_exit_datetime,  NULL) as invoice_exit_datetime,

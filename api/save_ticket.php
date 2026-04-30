@@ -17,6 +17,8 @@ try {
     $TpayC      = isset($body['TpayC'])      ? (int)$body['TpayC']      : 0;
     $TpayE      = isset($body['TpayE'])      ? (int)$body['TpayE']      : 0;
 
+    $fascia     = isset($body['fascia'])     ? trim($body['fascia'])    : null;
+
     // ✅ NEW: ingresso (da scheda targa) -> cassa.Tentry_date / cassa.Tentry_time
     $entryDate  = isset($body['entry_date']) ? $body['entry_date'] : null;
     $entryTime  = isset($body['entry_time']) ? $body['entry_time'] : null;
@@ -81,6 +83,7 @@ try {
             Tpaid = ?,
             TpayC = ?,
             TpayE = ?,
+            fascia = ?,
             Tentry_date = ?,
             Tentry_time = ?,
             Texit_date = ?,
@@ -90,6 +93,7 @@ try {
 
         $stmtUpd->execute([
             $Tannullato, $Tannultxt, $Tpaid, $TpayC, $TpayE,
+            $fascia,
             $entryDate, $entryTime,
             $exitDate, $exitTime,
             $row['idcassa']
@@ -110,12 +114,14 @@ try {
             INSERT INTO cassa (
                 Tplate_id, Tticket_code,
                 Tannullato, Tannultxt, Tpaid, TpayC, TpayE,
+                fascia,
                 Tentry_date, Tentry_time,
                 Texit_date, Texit_time,
                 created_at, updated_at
             ) VALUES (
                 ?, ?,
                 ?, ?, ?, ?, ?,
+                ?,
                 ?, ?,
                 ?, ?,
                 NOW(), NOW()
@@ -124,6 +130,7 @@ try {
         $stmtIns->execute([
             $plateId, $ticketCode,
             $Tannullato, $Tannultxt, $Tpaid, $TpayC, $TpayE,
+            $fascia,
             $entryDate, $entryTime,
             $exitDate, $exitTime
         ]);

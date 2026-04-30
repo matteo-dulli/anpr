@@ -48,6 +48,7 @@ try {
     $ticketFrom         = $getDateValue($data['ticket_from'] ?? '');
     $ticketTo           = $getDateValue($data['ticket_to'] ?? '');
     $ticketBalance      = (float)($data['ticket_balance'] ?? 0.00);
+    $fascia             = isset($data['fascia']) ? trim($data['fascia']) : null;
 
     // ✅ CAMPI PER TABELLA CASSA (ingresso/uscita)
     $Tentry_date        = $getDateValue($data['Tentry_date'] ?? '');
@@ -103,6 +104,7 @@ try {
             exit_time,
             notes,
             paid,
+            fascia,
             subscription,
             subscription_from,
             subscription_to,
@@ -111,7 +113,7 @@ try {
             ticket_to,
             ticket_balance,
             authorized_vehicle
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             ticket_info        = VALUES(ticket_info),
             vehicle_type       = VALUES(vehicle_type),
@@ -124,6 +126,7 @@ try {
             exit_time          = VALUES(exit_time),
             notes              = VALUES(notes),
             paid               = VALUES(paid),
+            fascia             = VALUES(fascia),
             subscription       = VALUES(subscription),
             subscription_from  = VALUES(subscription_from),
             subscription_to    = VALUES(subscription_to),
@@ -147,6 +150,7 @@ try {
         $exitTime,
         $notes,
         $paid,
+        $fascia,
         $subscription,
         $subscriptionFrom,
         $subscriptionTo,

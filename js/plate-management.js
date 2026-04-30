@@ -554,6 +554,7 @@ async function saveFinalTicket(plateId) {
             Tpaid:      pagato,
             TpayC:      payCash,
             TpayE:      payElec,
+            fascia:     document.getElementById('fascia')?.value || null,
             exit_date:  exitDate,   // può essere '' -> il backend lo converte in NULL
             exit_time:  exitTime
         };
