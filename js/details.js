@@ -455,6 +455,7 @@ async function savePlateToCassaIfTicketExistsSoft() {
     TpayE: document.getElementById('pay_electronic')?.checked ? 1 : 0,
     Tannullato: document.getElementById('annullato')?.checked ? 1 : 0,
     Tannultxt: document.getElementById('motivo')?.value || '',
+    fascia: document.getElementById('fascia')?.value || null,
     entry_date: document.getElementById('entryDate')?.value || null,
     entry_time: document.getElementById('entryTime')?.value || null,
     exit_date: document.getElementById('exitDate')?.value || null,

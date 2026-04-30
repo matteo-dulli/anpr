@@ -381,7 +381,8 @@ async function saveFinalTicket(plateId) {
             ticket_from: cleanDate(document.getElementById('ticketFrom')?.value),
             ticket_to: cleanDate(document.getElementById('ticketTo')?.value),
             ticket_balance: parseFloat(document.getElementById('ticketBalance')?.value || '0.00'),
-            authorized_vehicle: document.getElementById('authorizedVehicle')?.value || ''
+            authorized_vehicle: document.getElementById('authorizedVehicle')?.value || '',
+            fascia: document.getElementById('fascia')?.value || null
         };
 
         const endpoint = plateId === 0 ? 'create_manual_ticket.php' : 'update_ticket.php';
