@@ -16,6 +16,7 @@ try {
     $raw = file_get_contents('php://input');
     $body = $raw ? json_decode($raw, true) : [];
     $plateId = isset($body['plate_id']) ? (int)$body['plate_id'] : 0;
+$fascia = isset($body['fascia']) ? trim((string)$body['fascia']) : null;
 $entry_date = isset($body['entry_date']) ? trim((string)$body['entry_date']) : '';
 $entry_time = isset($body['entry_time']) ? trim((string)$body['entry_time']) : '';
 
@@ -85,14 +86,16 @@ $stmt = $db->prepare("
         ticket_code,
         plate_id,
         plate_number,
-        entry_datetime
-    ) VALUES (?, ?, ?, ?)
+        entry_datetime,
+        fascia
+    ) VALUES (?, ?, ?, ?, ?)
 ");
 $stmt->execute([
     $ticketCode,
     $plateId ?: null,
     $plateNumber,
-    $entryDateTime
+    $entryDateTime,
+    $fascia
 ]);
 
     $printedId = (int)$db->lastInsertId();

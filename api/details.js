@@ -160,7 +160,7 @@ async function renderDetails(plate) {
           <div class="form-group"><label>ORA INGRESSO</label><input type="time" id="entryTime" value="${entryTime ? entryTime.slice(0,5) : ''}" ${fieldState("entryTime")}readonly disabled></div>
           <div class="form-group"><label>DATA USCITA</label><input type="date" id="exitDate" value="${exitDate}" ${fieldState("exitDate")}readonly disabled></div>
           <div class="form-group"><label>ORA USCITA</label><input type="time" id="exitTime" value="${exitTime}" ${fieldState("exitTime")}readonly disabled></div>
-          <div class="form-group"><label>FASCIA ORARIA</label><select id="fascia" ${fieldState("fascia")}>${fascieOptions}</select></div>
+          <div class="form-group"><label>FASCIA ORARIA</label><select id="fascia" disabled readonly>${fascieOptions}</select></div>
           <div class="form-group"><label>Giorni</label><input type="number" id="giorni" value="${durataGiorni}" readonly></div>
           <div class="form-group"><label>Ore</label><input type="number" id="ore" value="${durataOre}" readonly></div>
           <div class="form-group"><label>Min</label><input type="number" id="minuti" value="${durataMinuti}" readonly></div>
@@ -468,7 +468,7 @@ function renderPassageDetails(passage, cassa) {
           </div>
           <div class="form-group">
             <label>FASCIA</label>
-            <select id="passageFascia" ${fieldLock("fascia")}>
+            <select id="passageFascia" disabled readonly>
                 ${fasciaOptions}
             </select>
           </div>
@@ -1142,7 +1142,7 @@ function renderPassageDetails(data) {
           </div>
           <div class="form-group">
             <label>FASCIA</label>
-            <select id="passageFascia" ${fieldLock("fascia")}>
+            <select id="passageFascia" disabled readonly>
                 ${fasciaOptions}
             </select>
           </div>
