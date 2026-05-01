@@ -26,6 +26,7 @@ function getMaxDaysFromCostanti(): int {
 
 function buildOptions(int $maxDays): array {
     $opts = [];
+    $opts[] = ['value' => 0, 'label' => 'Totale'];
     for ($d = 1; $d <= $maxDays; $d++) {
         if ($d === 1) $label = 'Oggi';
         elseif ($d === 2) $label = 'Oggi + Ieri';
@@ -41,50 +42,61 @@ $response = ['success' => false, 'message' => '', 'data' => null];
 try {
     $maxDays = getMaxDaysFromCostanti();
 
-    $days = isset($_GET['days']) ? (int)$_GET['days'] : 1;
-    if ($days < 1) $days = 1;
+    // default = Totale
+    $days = isset($_GET['days']) ? (int)$_GET['days'] : 0;
+    if ($days < 0) $days = 0;
     if ($days > $maxDays) $days = $maxDays;
 
     // Range "da mezzanotte" (coerente con il resto del progetto)
     $tz = new DateTimeZone('Europe/Rome');
-    $from = new DateTime('today', $tz);
-    $from->modify('-' . ($days - 1) . ' days');
-    $fromDT = $from->format('Y-m-d 00:00:00');
+
+    $fromDT = null;
+    if ($days > 0) {
+        $from = new DateTime('today', $tz);
+        $from->modify('-' . ($days - 1) . ' days');
+        $fromDT = $from->format('Y-m-d 00:00:00');
+    }
 
     // datetime entrata ticket_printed robusto (fallback created_at)
     $tpEntryDT = "COALESCE(tp.entry_datetime, tp.created_at)";
 
-    // ✅ FIX: JOIN ora accetta sia Tticket_code (targhe) che Pticket_code (passaggi)
+    // WHERE dinamico + params coerenti (1 solo parametro)
+    $where = "WHERE TRIM(COALESCE(tp.ticket_code,'')) <> ''";
+    $params = [];
+
+    if ($days > 0) {
+        $where .= " AND $tpEntryDT >= :fromDT";
+        $params[':fromDT'] = $fromDT;
+    }
+
+    // Presenza = ticket_printed SENZA ricevuta e NON annullato
+    // - ricevuta: invoice_code valorizzato
+    // - annullato: Tannullato=1 o Pannullato=1
+    // Nota: la correlazione avviene per ticket_code (targa o passaggio).
     $sql = "
       SELECT
-        -- ticket_printed nel range (debug)
-        SUM(CASE
-          WHEN TRIM(COALESCE(tp.ticket_code,'')) <> ''
-           AND $tpEntryDT >= :fromDT
-          THEN 1 ELSE 0 END
-        ) AS tickets_tp_range,
+        COUNT(DISTINCT tp.id) AS tickets_tp_range,
 
-        -- presenti: ticket_printed nel range SENZA ricevuta in cassa e non annullati
-        -- ✅ IMPORTANTE: gestisce sia targhe (Tticket_code) che passaggi (Pticket_code)
-        SUM(CASE
-          WHEN TRIM(COALESCE(tp.ticket_code,'')) <> ''
-           AND $tpEntryDT >= :fromDT2
-           AND COALESCE(c.Tannullato, 0) = 0
-           AND COALESCE(c.Pannullato, 0) = 0
-           AND TRIM(COALESCE(c.invoice_code, '')) = ''
-          THEN 1 ELSE 0 END
-        ) AS presenti_t
+        COUNT(DISTINCT CASE
+          WHEN NOT EXISTS (
+            SELECT 1
+            FROM cassa c
+            WHERE (c.Tticket_code = tp.ticket_code OR c.Pticket_code = tp.ticket_code)
+              AND (
+                   TRIM(COALESCE(c.invoice_code,'')) <> ''
+                OR COALESCE(c.Tannullato,0) = 1
+                OR COALESCE(c.Pannullato,0) = 1
+              )
+          )
+          THEN tp.id
+        END) AS presenti_t
 
       FROM tickets_printed tp
-      LEFT JOIN cassa c
-        ON c.Tticket_code = tp.ticket_code OR c.Pticket_code = tp.ticket_code
+      $where
     ";
 
     $stmt = $db->prepare($sql);
-    $stmt->execute([
-        ':fromDT'  => $fromDT,
-        ':fromDT2' => $fromDT,
-    ]);
+    $stmt->execute($params);
 
     $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
@@ -97,11 +109,7 @@ try {
         'max_days' => $maxDays,
         'options' => buildOptions($maxDays),
         'from_datetime' => $fromDT,
-
-        // totale presenze (per ora solo T)
         'presenti' => $presentiT,
-
-        // breakdown/debug
         'breakdown' => [
             'presenti_t' => $presentiT,
             'tickets_printed_range' => $ticketsTPRange,

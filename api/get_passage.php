@@ -45,7 +45,7 @@ try {
 
         COALESCE(c.Pannullato, 0) as annullato,
         COALESCE(c.Pannultxt, '') as motivo,
-        COALESCE(c.fascia, 'F1') as fascia,
+        COALESCE(tp.fascia, c.fascia, 'F1') as fascia,
 
         c.invoice_code as invoice_code,
 
@@ -57,6 +57,7 @@ try {
 
     FROM passages p
     LEFT JOIN cassa c ON p.id = c.idpassages
+    LEFT JOIN tickets_printed tp ON p.ticket_printed_id = tp.id
     WHERE p.id = ?
     LIMIT 1
 ";
@@ -86,12 +87,13 @@ try {
 
             COALESCE(c.Pannullato, 0) as annullato,
             COALESCE(c.Pannultxt, '') as motivo,
-            COALESCE(c.fascia, 'F1') as fascia,
+            COALESCE(tp.fascia, c.fascia, 'F1') as fascia,
 
             c.invoice_code as invoice_code
 
         FROM passages p
         LEFT JOIN cassa c ON p.id = c.idpassages
+        LEFT JOIN tickets_printed tp ON p.ticket_printed_id = tp.id
         WHERE p.id = ?
         LIMIT 1
     ";

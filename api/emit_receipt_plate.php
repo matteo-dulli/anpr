@@ -93,7 +93,8 @@ try {
             tp.ticket_code,
             tp.id AS tickets_printed_id,
             tp.entry_datetime AS entry_datetime,
-            tp.exit_datetime  AS exit_datetime
+            tp.exit_datetime  AS exit_datetime,
+            tp.fascia AS tp_fascia
         FROM tickets_printed tp
         LEFT JOIN tickets t ON t.plate_id = tp.plate_id
         WHERE tp.plate_id = ?
@@ -105,6 +106,7 @@ try {
 
     if (!$ticket || empty($ticket['ticket_code'])) throw new Exception("Ticket non trovato");
     $ticket_code = $ticket['ticket_code'];
+    $fasciaFromTicket = $ticket['tp_fascia'] ?? null;
 
     $stmtAnn = $db->prepare("
         SELECT COALESCE(Tannullato,0) AS Tannullato
@@ -186,7 +188,8 @@ try {
             invoice_exit_datetime = ?,
 
             prezzo = ?,
-            invoice_price = ?
+            invoice_price = ?,
+            fascia = ?
             WHERE idcassa = ?";
 
         $stmt = $db->prepare($query);
@@ -206,6 +209,7 @@ try {
 
             $price,
             $price,
+            $fasciaFromTicket,
 
             $rowCassa['idcassa']
         ]);
@@ -222,9 +226,10 @@ try {
               giorni, ore, minuti,
               invoice_entry_datetime, invoice_exit_datetime,
 
-              prezzo, invoice_price
+              prezzo, invoice_price,
+              fascia
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $db->prepare($query);
         $stmt->execute([
@@ -239,7 +244,8 @@ try {
             $entryForInvoice, $exitForInvoice,
 
             $price,
-            $price
+            $price,
+            $fasciaFromTicket
         ]);
     }
 

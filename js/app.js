@@ -918,6 +918,64 @@ function initInlineNewPlate() {
     });
 }
 
+// ================== POPUP SELEZIONE FASCIA ==================
+async function showFasciaPopup(fasceData) {
+    return new Promise((resolve) => {
+        // Rimuovi overlay esistente se presente
+        const existing = document.getElementById('fasciaPopupOverlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'fasciaPopupOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:white;border-radius:12px;padding:24px 28px;min-width:320px;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.35);';
+
+        const btnRows = fasceData.map(f => `
+            <button type="button"
+                data-fascia="${f.codice}"
+                style="display:block;width:100%;padding:10px 14px;margin-bottom:8px;border:2px solid #e5e7eb;border-radius:8px;background:white;cursor:pointer;text-align:left;font-size:14px;transition:border-color 0.15s,background 0.15s;"
+                onmouseover="this.style.borderColor='#667eea';this.style.background='#f0f4ff';"
+                onmouseout="this.style.borderColor='#e5e7eb';this.style.background='white';">
+                <strong>${f.codice}</strong> — ${f.testo} &nbsp;|&nbsp; H: €${parseFloat(f.prezzo).toFixed(2)} &nbsp;|&nbsp; G: €${parseFloat(f.prezzo_day).toFixed(2)}
+            </button>
+        `).join('');
+
+        modal.innerHTML = `
+            <h3 style="margin:0 0 16px;font-size:17px;color:#1f2937;">🏷️ Seleziona Fascia</h3>
+            <div id="fasciaOptionsList">${btnRows}</div>
+            <button type="button" id="fasciaPopupCancel"
+                style="margin-top:8px;padding:8px 16px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;">
+                ✕ Annulla
+            </button>
+        `;
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        modal.querySelectorAll('[data-fascia]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                overlay.remove();
+                resolve(btn.getAttribute('data-fascia'));
+            });
+        });
+
+        document.getElementById('fasciaPopupCancel').addEventListener('click', () => {
+            overlay.remove();
+            resolve(null);
+        });
+
+        // Chiudi cliccando fuori
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+                resolve(null);
+            }
+        });
+    });
+}
+
 // ================== EMETTI TICKET ==================
 async function emitTicket() {
     console.log("emitTicket CALLED", { selectedPlateId, selectedIsPassage }, new Error().stack);
@@ -947,6 +1005,49 @@ async function emitTicket() {
 
         console.log('🎫 emitTicket: plateId =', plateId, 'isPassageMode =', isPassageMode);
 
+        // ===== SELEZIONE FASCIA =====
+        let fasciaToUse = null;
+
+        if (!isPassageMode && plateId > 0) {
+            // Per targhe: controlla se ha tessera prepagata attiva
+            const currentPlate = allPlates.find(p => p.id === plateId);
+            const plateNumber = currentPlate ? (currentPlate.plate_corrected || currentPlate.plate_number) : null;
+
+            if (plateNumber) {
+                try {
+                    const tessResp = await fetch(`${API_BASE}/modulo5_tessera_get.php?plate_number=${encodeURIComponent(plateNumber)}`);
+                    const tessData = await tessResp.json();
+                    if (tessData.success && tessData.data && tessData.data.attivo === 1 && tessData.data.fascias) {
+                        fasciaToUse = tessData.data.fascias;
+                        console.log('💳 Tessera prepagata attiva: fascia automatica =', fasciaToUse);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Errore verifica tessera prepagata:', e);
+                }
+            }
+        }
+
+        if (!fasciaToUse) {
+            // Mostra popup selezione fascia (per targhe senza prepagata e per passaggi)
+            let fasceData = [];
+            try {
+                const fasceResp = await fetch(`${API_BASE}/get_fasce.php`);
+                const fasceJson = await fasceResp.json();
+                if (fasceJson.success && Array.isArray(fasceJson.data)) {
+                    fasceData = fasceJson.data;
+                }
+            } catch (e) {
+                console.warn('⚠️ Errore caricamento fasce:', e);
+            }
+
+            fasciaToUse = await showFasciaPopup(fasceData);
+            if (!fasciaToUse) {
+                showToast('⚠️ Emissione ticket annullata', 'warning', 2000);
+                return;
+            }
+        }
+        // ===== FINE SELEZIONE FASCIA =====
+
         showToast('⏳ Emissione ticket in corso...', 'info', 2000);
 
      const response = await fetch(`${API_BASE}/emit_ticket.php`, {
@@ -954,6 +1055,7 @@ async function emitTicket() {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     plate_id: plateId,
+    fascia: fasciaToUse,
 
     // ✅ NEW: per targhe manuali, usa l'ingresso inserito in scheda (se presente)
     // Se i campi non esistono o sono vuoti, il backend userà il fallback (date_detected).
