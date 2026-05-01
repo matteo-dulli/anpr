@@ -99,23 +99,23 @@ try {
     error_log("[DEBUG SAVE] passageId=$passageId | Ppaid=$Ppaid | PpayC=$PpayC | PpayE=$PpayE | Pannullato=$Pannullato | Pannultxt=$Pannultxt | invoice_price=$invoice_price | fascia=$fascia | Pticket_code=$Pticket_code | entry_dt={$entry_datetime_norm} | exit_dt={$exit_datetime_norm}");
 
     // PATCH: aggiorna TUTTI i campi con l'ordine giusto
-    if ($passageId > 0) {
+ if ($passageId > 0) {
         $stmt = $db->prepare("
             INSERT INTO cassa (
-                idpassages, Ppaid, PpayC, PpayE, Pannullato, Pannultxt, invoice_price, fascia, Pticket_code, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                idpassages, Ppaid, PpayC, PpayE, Pannullato, Pannultxt, invoice_price, Pticket_code, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ON DUPLICATE KEY UPDATE
                 Ppaid=VALUES(Ppaid), PpayC=VALUES(PpayC), PpayE=VALUES(PpayE),
                 Pannullato=VALUES(Pannullato), Pannultxt=VALUES(Pannultxt),
-                invoice_price=VALUES(invoice_price), fascia=VALUES(fascia),
+                invoice_price=VALUES(invoice_price),
                 Pticket_code=VALUES(Pticket_code), updated_at=NOW()
         ");
         // Debug: stampa l'array dei valori a video/log
         error_log("[DEBUG EXECUTE] ".json_encode([
-            $passageId, $Ppaid, $PpayC, $PpayE, $Pannullato, $Pannultxt, $invoice_price, $fascia, $Pticket_code
+            $passageId, $Ppaid, $PpayC, $PpayE, $Pannullato, $Pannultxt, $invoice_price, $Pticket_code
         ]));
         $ok = $stmt->execute([
-            $passageId, $Ppaid, $PpayC, $PpayE, $Pannullato, $Pannultxt, $invoice_price, $fascia, $Pticket_code
+            $passageId, $Ppaid, $PpayC, $PpayE, $Pannullato, $Pannultxt, $invoice_price, $Pticket_code
         ]);
         if (!$ok || $stmt->errorCode() !== '00000') {
             $errInfo = $stmt->errorInfo();

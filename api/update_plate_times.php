@@ -20,27 +20,24 @@ try {
     $exitDate = isset($data['exit_date']) && $data['exit_date'] !== '' ? $data['exit_date'] : null;
     $exitTime = isset($data['exit_time']) && $data['exit_time'] !== '' ? $data['exit_time'] : null;
     $price = isset($data['price']) ? floatval($data['price']) : 0;
-    $fascia = isset($data['fascia']) ? $data['fascia'] : null;
 
     // ===== INIZIA TRANSAZIONE =====
     $db->beginTransaction();
 
-    // ===== 1. AGGIORNA TICKET CON INGRESSO/USCITA/FASCIA =====
+    // ===== 1. AGGIORNA TICKET CON INGRESSO/USCITA =====
     $stmt = $db->prepare("
         INSERT INTO tickets (
             plate_id,
             entry_date,
             entry_time,
             exit_date,
-            exit_time,
-            fascia
-        ) VALUES (?, ?, ?, ?, ?, ?)
+            exit_time
+        ) VALUES (?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             entry_date = VALUES(entry_date),
             entry_time = VALUES(entry_time),
             exit_date = VALUES(exit_date),
-            exit_time = VALUES(exit_time),
-            fascia = COALESCE(VALUES(fascia), fascia)
+            exit_time = VALUES(exit_time)
     ");
 
     $stmt->execute([
@@ -48,8 +45,7 @@ try {
         $entryDate,
         $entryTime,
         $exitDate,
-        $exitTime,
-        $fascia
+        $exitTime
     ]);
 
     // ===== 2. AGGIORNA CASSA (se esiste record) =====
@@ -60,8 +56,7 @@ try {
             Tentry_time = ?,
             Texit_date = ?,
             Texit_time = ?,
-            prezzo = ?,
-            fascia = ?
+            prezzo = ?
         WHERE Tplate_id = ?
     ");
 
@@ -71,7 +66,6 @@ try {
         $exitDate,
         $exitTime,
         $price,
-        $fascia,
         $plateId
     ]);
 

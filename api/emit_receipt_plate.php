@@ -1,7 +1,7 @@
 <?php
 
-// ================== DEBUG FATAL (come emit_receipt_passage.php) ==================
-error_log('[PRINT DEBUG] ticket_code=' . var_export($ticket_code, true) . ' barcodeValue=' . var_export($barcodeValue, true) . ' file=' . var_export($fileCreato, true));
+// ================== DEBUG FATAL ==================
+error_log('[PRINT DEBUG] ticket_code=' . var_export($ticket_code ?? null, true) . ' barcodeValue=' . var_export($barcodeValue ?? null, true) . ' file=' . var_export($fileCreato ?? null, true));
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/emit_receipt_plate_fatal.log');
@@ -19,31 +19,18 @@ register_shutdown_function(function () {
 });
 // ================================================================================
 header('Content-Type: application/json; charset=utf-8');
-// ✅ DEBUG TRACE (scrive sempre su file, anche se error_log sistema non si vede)
-@file_put_contents(__DIR__ . '/emit_receipt_plate_trace.log',
-    "\n[" . date('Y-m-d H:i:s') . "] START\n",
-    FILE_APPEND
-);
 
-// ✅ assicurati che non ci sia output precedente
 if (ob_get_level() > 0) { @ob_clean(); }
 date_default_timezone_set('Europe/Rome');
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/functions.php';
 
-@file_put_contents(__DIR__ . '/emit_receipt_plate_trace.log',
-    "[" . date('Y-m-d H:i:s') . "] AFTER REQUIRE functions.php\n",
-    FILE_APPEND
-);
-
 $db = getDatabaseConnection();
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 $response = ['success' => false, 'message' => '', 'data' => null];
 
-// ✅ NEW: legge la soglia dal blocco "# ALLARME TESSERESCALARE" (SOGLIA = 5)
-// ✅ PATCH: evita Fatal "Cannot redeclare ..." se la funzione è già definita (es. in functions.php)
 if (!function_exists('getTesseraScalareAlertThresholdFromCostanti')) {
     function getTesseraScalareAlertThresholdFromCostanti(): ?float {
         if (!defined('COSTANTI_FILE') || !file_exists(COSTANTI_FILE)) return null;
@@ -68,11 +55,9 @@ if (!function_exists('getTesseraScalareAlertThresholdFromCostanti')) {
 
             if (!$in) continue;
 
-            // supporto "SOGLIA = 5" oppure "5"
             if (strpos($raw, '=') !== false) {
                 [$k, $v] = array_map('trim', explode('=', $raw, 2));
                 if (mb_strtoupper($k, 'UTF-8') === 'SOGLIA') {
-                    // ✅ PATCH: valida numerico prima del cast (evita warning/valori strani)
                     if (is_numeric($v)) return (float)$v;
                 }
             } else {
@@ -90,8 +75,6 @@ try {
 
     $plateId = isset($body['plate_id']) ? (int)$body['plate_id'] : 0;
     $price   = isset($body['price']) ? floatval($body['price']) : 0;
-
-    $fascia  = isset($body['fascia']) ? trim((string)$body['fascia']) : '';
 
     if ($plateId <= 0) throw new Exception('ID targa non valido: ' . $plateId);
 
@@ -202,7 +185,6 @@ try {
             invoice_entry_datetime = ?, 
             invoice_exit_datetime = ?,
 
-            fascia = ?,
             prezzo = ?,
             invoice_price = ?
             WHERE idcassa = ?";
@@ -222,7 +204,6 @@ try {
             $giorni, $ore, $minuti,
             $entryForInvoice, $exitForInvoice,
 
-            $fascia,
             $price,
             $price,
 
@@ -241,10 +222,9 @@ try {
               giorni, ore, minuti,
               invoice_entry_datetime, invoice_exit_datetime,
 
-              fascia,
               prezzo, invoice_price
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $db->prepare($query);
         $stmt->execute([
@@ -258,7 +238,6 @@ try {
             $giorni, $ore, $minuti,
             $entryForInvoice, $exitForInvoice,
 
-            $fascia,
             $price,
             $price
         ]);
@@ -292,131 +271,115 @@ try {
     ]);
 
     $stmt = $db->prepare("SELECT id FROM invoices_printed WHERE receipt_code = ? LIMIT 1");
-$stmt->execute([$receiptCode]);
-if ($stmt->rowCount() === 0) throw new Exception("Ricevuta NON salvata in invoices_printed!");
+    $stmt->execute([$receiptCode]);
+    if ($stmt->rowCount() === 0) throw new Exception("Ricevuta NON salvata in invoices_printed!");
 
-// ============================
-// TXT + Tessera + Rigenera TXT + Stampa (ORDINE CORRETTO)
-// ============================
+    $invoiceDir = rtrim(INVOICE_DIR, DIRECTORY_SEPARATOR);
+    if (!is_dir($invoiceDir)) {
+        @mkdir($invoiceDir, 0777, true);
+    }
+    if (!is_dir($invoiceDir) || !is_writable($invoiceDir)) {
+        error_log("[ERRORE] INVOICE_DIR non accessibile: {$invoiceDir}");
+        throw new Exception("Cartella INVOICE_DIR non scrivibile o inesistente: " . $invoiceDir);
+    }
 
-$invoiceDir = rtrim(INVOICE_DIR, DIRECTORY_SEPARATOR);
-if (!is_dir($invoiceDir)) {
-    @mkdir($invoiceDir, 0777, true);
-}
-if (!is_dir($invoiceDir) || !is_writable($invoiceDir)) {
-    error_log("[ERRORE] INVOICE_DIR non accessibile: {$invoiceDir}");
-    throw new Exception("Cartella INVOICE_DIR non scrivibile o inesistente: " . $invoiceDir);
-}
+    $fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db);
+    if (!$fileCreato || !file_exists($fileCreato)) {
+        throw new Exception('Errore fisico nella scrittura della ricevuta TXT!');
+    }
 
-// 1) Genera un TXT base (opzionale ma ok lasciarlo)
-$fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db);
-if (!$fileCreato || !file_exists($fileCreato)) {
-    throw new Exception('Errore fisico nella scrittura della ricevuta TXT!');
-}
+    try {
+        $stmtPN = $db->prepare("SELECT plate_corrected, plate_number FROM plates WHERE id=? LIMIT 1");
+        $stmtPN->execute([$plateId]);
+        $pRow = $stmtPN->fetch(PDO::FETCH_ASSOC);
+        $plateNumber = trim((string)(($pRow['plate_corrected'] ?? '') ?: ($pRow['plate_number'] ?? '')));
 
-// 2) ✅ Tessera a scalare - applica scalata al momento della ricevuta
-//    ✅ e salva su invoices_printed i campi tessera_* per stampa/ristampa TXT
-try {
-    // recupero plate_number
-    $stmtPN = $db->prepare("SELECT plate_corrected, plate_number FROM plates WHERE id=? LIMIT 1");
-    $stmtPN->execute([$plateId]);
-    $pRow = $stmtPN->fetch(PDO::FETCH_ASSOC);
-    $plateNumber = trim((string)(($pRow['plate_corrected'] ?? '') ?: ($pRow['plate_number'] ?? '')));
+        if ($plateNumber !== '') {
+            $stmtT = $db->prepare("SELECT * FROM tesserapre WHERE plate_number=? AND canc=0 ORDER BY id DESC LIMIT 1");
+            $stmtT->execute([$plateNumber]);
+            $tess = $stmtT->fetch(PDO::FETCH_ASSOC);
 
-    if ($plateNumber !== '') {
-        // tessera attiva
-        $stmtT = $db->prepare("SELECT * FROM tesserapre WHERE plate_number=? AND canc=0 ORDER BY id DESC LIMIT 1");
-        $stmtT->execute([$plateNumber]);
-        $tess = $stmtT->fetch(PDO::FETCH_ASSOC);
+            if ($tess && (int)($tess['attivo'] ?? 0) === 1) {
+                $tesseraId = (int)$tess['id'];
+                $resBefore = (float)($tess['res1'] ?? 0);
+                $amountTotal = (float)$price;
+                if ($amountTotal < 0) $amountTotal = 0;
 
-        if ($tess && (int)($tess['attivo'] ?? 0) === 1) {
-            $tesseraId = (int)$tess['id'];
-            $resBefore = (float)($tess['res1'] ?? 0);
-            $amountTotal = (float)$price;
-            if ($amountTotal < 0) $amountTotal = 0;
+                if ($amountTotal > 0 && $resBefore > 0) {
+                    $amountScaled = min($resBefore, $amountTotal);
+                    $amountRemaining = max(0, $amountTotal - $amountScaled);
+                    $resAfter = $resBefore - $amountScaled;
 
-            if ($amountTotal > 0 && $resBefore > 0) {
-                $amountScaled = min($resBefore, $amountTotal);
-                $amountRemaining = max(0, $amountTotal - $amountScaled);
-                $resAfter = $resBefore - $amountScaled;
+                    if ($amountScaled > 0) {
+                        $stmtUpd = $db->prepare("UPDATE tesserapre SET res1=? WHERE id=? LIMIT 1");
+                        $stmtUpd->execute([$resAfter, $tesseraId]);
 
-                if ($amountScaled > 0) {
-                    // aggiorna residuo tessera
-                    $stmtUpd = $db->prepare("UPDATE tesserapre SET res1=? WHERE id=? LIMIT 1");
-                    $stmtUpd->execute([$resAfter, $tesseraId]);
+                        $stmtInv = $db->prepare("
+                            UPDATE invoices_printed
+                            SET tessera_id = ?, tessera_scaled = ?, tessera_res_after = ?
+                            WHERE receipt_code = ?
+                            LIMIT 1
+                        ");
+                        $stmtInv->execute([$tesseraId, $amountScaled, $resAfter, $receiptCode]);
 
-                    // ✅ salva per stampa/ristampa su invoices_printed
-                    $stmtInv = $db->prepare("
-                        UPDATE invoices_printed
-                        SET tessera_id = ?, tessera_scaled = ?, tessera_res_after = ?
-                        WHERE receipt_code = ?
-                        LIMIT 1
-                    ");
-                    $stmtInv->execute([$tesseraId, $amountScaled, $resAfter, $receiptCode]);
-
-                    // marca ticket (opzionale)
-                    $ticketsPrintedId = (int)($ticket['tickets_printed_id'] ?? 0);
-                    if ($ticketsPrintedId > 0) {
-                        try {
-                            $stmtSc = $db->prepare("UPDATE tickets_printed SET scal=?, scal_amount=? WHERE id=? LIMIT 1");
-                            $stmtSc->execute([$tesseraId, $amountScaled, $ticketsPrintedId]);
-                        } catch (Throwable $eSc) {
-                            $stmtSc = $db->prepare("UPDATE tickets_printed SET scal=? WHERE id=? LIMIT 1");
-                            $stmtSc->execute([$tesseraId, $ticketsPrintedId]);
+                        $ticketsPrintedId = (int)($ticket['tickets_printed_id'] ?? 0);
+                        if ($ticketsPrintedId > 0) {
+                            try {
+                                $stmtSc = $db->prepare("UPDATE tickets_printed SET scal=?, scal_amount=? WHERE id=? LIMIT 1");
+                                $stmtSc->execute([$tesseraId, $amountScaled, $ticketsPrintedId]);
+                            } catch (Throwable $eSc) {
+                                $stmtSc = $db->prepare("UPDATE tickets_printed SET scal=? WHERE id=? LIMIT 1");
+                                $stmtSc->execute([$tesseraId, $ticketsPrintedId]);
+                            }
                         }
-                    }
 
-                    // soglia allarme (se funzione disponibile)
-                    $thr = function_exists('getTesseraScalareAlertThresholdFromCostanti')
-                        ? getTesseraScalareAlertThresholdFromCostanti()
-                        : null;
+                        $thr = function_exists('getTesseraScalareAlertThresholdFromCostanti')
+                            ? getTesseraScalareAlertThresholdFromCostanti()
+                            : null;
 
-                    if (!is_array($response['data'])) $response['data'] = [];
-                    $response['data']['tessera_scalare'] = [
-                        'tessera_id' => $tesseraId,
-                        'scaled' => $amountScaled,
-                        'remaining' => $amountRemaining,
-                        'res_after' => $resAfter,
-                        'threshold' => $thr
-                    ];
+                        if (!is_array($response['data'])) $response['data'] = [];
+                        $response['data']['tessera_scalare'] = [
+                            'tessera_id' => $tesseraId,
+                            'scaled' => $amountScaled,
+                            'remaining' => $amountRemaining,
+                            'res_after' => $resAfter,
+                            'threshold' => $thr
+                        ];
 
-                    if ($thr !== null && $resAfter <= (float)$thr) {
-                        $response['data']['tessera_alert'] =
-                            "⚠️ Credito tessera in esaurimento (residuo €" . number_format($resAfter, 2, '.', '') . ")";
+                        if ($thr !== null && $resAfter <= (float)$thr) {
+                            $response['data']['tessera_alert'] =
+                                "⚠️ Credito tessera in esaurimento (residuo €" . number_format($resAfter, 2, '.', '') . ")";
+                        }
                     }
                 }
             }
         }
+    } catch (Throwable $eTess) {
+        error_log('[emit_receipt_plate] Tessera scalare warning: ' . $eTess->getMessage());
     }
-} catch (Throwable $eTess) {
-    error_log('[emit_receipt_plate] Tessera scalare warning: ' . $eTess->getMessage());
-}
 
-// 3) ✅ Rigenera il TXT DOPO aver scritto tessera_* in invoices_printed
-$fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db);
-if (!$fileCreato || !file_exists($fileCreato)) {
-    throw new Exception('Errore fisico nella scrittura della ricevuta TXT (rigenerazione dopo tessera)!');
-}
-
-// 4) ✅ Stampa ESC/POS dal TXT aggiornato + barcode (ticket_code)
-$barcodeValue = trim((string)$ticket_code);
-if ($barcodeValue !== '') {
-    $printResult = escpos_print_txt_with_barcode_from_file($fileCreato, $barcodeValue);
-    if (!$printResult['success']) {
-        error_log('[emit_receipt_plate] PRINT WARNING: ' . $printResult['message']);
+    $fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db);
+    if (!$fileCreato || !file_exists($fileCreato)) {
+        throw new Exception('Errore fisico nella scrittura della ricevuta TXT (rigenerazione dopo tessera)!');
     }
-}
 
-// ✅ QUI deve restare alla fine (dopo tessera + rigenera + stampa)
-$response['success'] = true;
-$response['message'] = "Ricevuta emessa e dati aggiornati";
-$response['data'] = array_merge(
-    is_array($response['data']) ? $response['data'] : [],
-    [
-        'receipt_code' => $receiptCode,
-        'RECEIPT_FILENAME' => isset($fileCreato) ? basename($fileCreato) : ''
-    ]
-);
+    $barcodeValue = trim((string)$ticket_code);
+    if ($barcodeValue !== '') {
+        $printResult = escpos_print_txt_with_barcode_from_file($fileCreato, $barcodeValue);
+        if (!$printResult['success']) {
+            error_log('[emit_receipt_plate] PRINT WARNING: ' . $printResult['message']);
+        }
+    }
+
+    $response['success'] = true;
+    $response['message'] = "Ricevuta emessa e dati aggiornati";
+    $response['data'] = array_merge(
+        is_array($response['data']) ? $response['data'] : [],
+        [
+            'receipt_code' => $receiptCode,
+            'RECEIPT_FILENAME' => isset($fileCreato) ? basename($fileCreato) : ''
+        ]
+    );
 
 } catch (Throwable $e) {
     http_response_code(500);
@@ -425,6 +388,5 @@ $response['data'] = array_merge(
     error_log('EMIT_RECEIPT_ERROR: ' . $e->getMessage());
 }
 
-// ✅ risposta JSON (UNICA) dell’endpoint (fuori dal try/catch)
 echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 exit;

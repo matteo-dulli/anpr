@@ -3,11 +3,13 @@ header('Content-Type: application/json');
 date_default_timezone_set('Europe/Rome');
 
 require_once __DIR__ . '/../config/config.php';
-// ✅ NEW: usiamo le funzioni comuni (stampa ESC/POS)
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/escpos.php';
 
 $db = getDatabaseConnection();
+$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+error_log("=== EMIT_TICKET START ===");
+
 $response = ['success' => false, 'message' => '', 'data' => null];
 
 try {
@@ -73,21 +75,25 @@ if ($isManualPlate && $bodyEntryDate !== '' && $bodyEntryTime !== '') {
     $randPart  = substr(strtoupper(bin2hex(random_bytes(4))), 0, 5);
     $ticketCode = "T{$codeDate}-{$randPart}";
 
+    error_log("DEBUG: About to INSERT into tickets_printed with: ticket_code={$ticketCode}, plate_id={$plateId}, entry_datetime={$entryDateTime}");
+
     // ===== 5. SALVA IN tickets_printed =====
-    $stmt = $db->prepare("
-        INSERT INTO tickets_printed (
-            ticket_code,
-            plate_id,
-            plate_number,
-            entry_datetime
-        ) VALUES (?, ?, ?, ?)
-    ");
-    $stmt->execute([
-        $ticketCode,
-        $plateId ?: null,
-        $plateNumber,
-        $entryDateTime
-    ]);
+   // ===== 5. SALVA IN tickets_printed =====
+// ===== 5. SALVA IN tickets_printed =====
+$stmt = $db->prepare("
+    INSERT INTO tickets_printed (
+        ticket_code,
+        plate_id,
+        plate_number,
+        entry_datetime
+    ) VALUES (?, ?, ?, ?)
+");
+$stmt->execute([
+    $ticketCode,
+    $plateId ?: null,
+    $plateNumber,
+    $entryDateTime
+]);
 
     $printedId = (int)$db->lastInsertId();
     $passageId = null;
@@ -225,9 +231,7 @@ if ($isManualPlate && $bodyEntryDate !== '' && $bodyEntryTime !== '') {
 
 } catch (Exception $e) {
     $response['message'] = '❌ ' . $e->getMessage();
-    if (function_exists('logEvent')) {
-        logEvent('error', 'EMIT_TICKET_ERROR: ' . $e->getMessage());
-    }
+    error_log('EMIT_TICKET_ERROR: ' . $e->getMessage());
 }
 
 echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);

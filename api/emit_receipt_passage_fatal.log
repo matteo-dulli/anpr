@@ -1,0 +1,49 @@
+[20-Apr-2026 19:33:17 Europe/Rome] [ERRORE] Ricevuta NON scritta o path errato. fileCreato=false invoiceDir=/share/CE_CACHEDEV1_DATA/Web/anpr/invoice phpError=NULL
+[20-Apr-2026 19:33:37 Europe/Rome] [ERRORE] Ricevuta NON scritta o path errato. fileCreato=false invoiceDir=/share/CE_CACHEDEV1_DATA/Web/anpr/invoice phpError=NULL
+[20-Apr-2026 19:34:09 Europe/Rome] [ERRORE] Ricevuta NON scritta o path errato. fileCreato=false invoiceDir=/share/CE_CACHEDEV1_DATA/Web/anpr/invoice phpError=NULL
+[20-Apr-2026 19:36:00 Europe/Rome] [ERRORE] Ricevuta NON scritta o path errato. fileCreato=false invoiceDir=/share/CE_CACHEDEV1_DATA/Web/anpr/invoice phpError=NULL
+[20-Apr-2026 19:46:14 Europe/Rome] [ERRORE] Ricevuta NON scritta o path errato. fileCreato=false invoiceDir=/share/CE_CACHEDEV1_DATA/Web/anpr/invoice phpError=NULL
+[20-Apr-2026 21:51:25 Europe/Rome] PHP Fatal error:  Uncaught Error: Call to undefined function cleanDateTimeNoSec() in /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php:117
+Stack trace:
+#0 /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_passage.php(148): writeReceiptTxt('R_20260420_2151...', '/share/CE_CACHE...', false, Object(PDO))
+#1 {main}
+  thrown in /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php on line 117
+
+[2026-04-20 21:51:25] FATAL: Array
+(
+    [type] => 1
+    [message] => Uncaught Error: Call to undefined function cleanDateTimeNoSec() in /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php:117
+Stack trace:
+#0 /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_passage.php(148): writeReceiptTxt('R_20260420_2151...', '/share/CE_CACHE...', false, Object(PDO))
+#1 {main}
+  thrown
+    [file] => /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php
+    [line] => 117
+)
+
+[20-Apr-2026 21:51:30 Europe/Rome] PHP Fatal error:  Uncaught Error: Call to undefined function cleanDateTimeNoSec() in /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php:117
+Stack trace:
+#0 /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_passage.php(148): writeReceiptTxt('R_20260420_2151...', '/share/CE_CACHE...', false, Object(PDO))
+#1 {main}
+  thrown in /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php on line 117
+
+[2026-04-20 21:51:30] FATAL: Array
+(
+    [type] => 1
+    [message] => Uncaught Error: Call to undefined function cleanDateTimeNoSec() in /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php:117
+Stack trace:
+#0 /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_passage.php(148): writeReceiptTxt('R_20260420_2151...', '/share/CE_CACHE...', false, Object(PDO))
+#1 {main}
+  thrown
+    [file] => /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php
+    [line] => 117
+)
+
+[26-Apr-2026 12:10:11 Europe/Rome] [emit_receipt_passage] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 14:09:15 Europe/Rome] [emit_receipt_passage] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 17:05:13 Europe/Rome] [emit_receipt_passage] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 17:44:38 Europe/Rome] [emit_receipt_passage] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 20:25:41 Europe/Rome] [emit_receipt_passage] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[27-Apr-2026 10:26:55 Europe/Rome] [emit_receipt_passage] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[27-Apr-2026 10:31:54 Europe/Rome] [emit_receipt_passage] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[27-Apr-2026 11:04:08 Europe/Rome] [emit_receipt_passage] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato

@@ -1,0 +1,95 @@
+[26-Apr-2026 12:46:55 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 12:46:55 Europe/Rome] PHP Fatal error:  Cannot redeclare getTesseraScalareAlertThresholdFromCostanti() (previously declared in /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_plate.php:32) in /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php on line 373
+
+[2026-04-26 12:46:55] FATAL: Array
+(
+    [type] => 1
+    [message] => Cannot redeclare getTesseraScalareAlertThresholdFromCostanti() (previously declared in /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_plate.php:32)
+    [file] => /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php
+    [line] => 373
+)
+
+[26-Apr-2026 12:49:25 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 12:49:25 Europe/Rome] PHP Fatal error:  Cannot redeclare getTesseraScalareAlertThresholdFromCostanti() (previously declared in /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_plate.php:32) in /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php on line 373
+
+[2026-04-26 12:49:25] FATAL: Array
+(
+    [type] => 1
+    [message] => Cannot redeclare getTesseraScalareAlertThresholdFromCostanti() (previously declared in /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_plate.php:32)
+    [file] => /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php
+    [line] => 373
+)
+
+[26-Apr-2026 12:49:40 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 12:49:40 Europe/Rome] PHP Fatal error:  Cannot redeclare getTesseraScalareAlertThresholdFromCostanti() (previously declared in /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_plate.php:32) in /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php on line 373
+
+[2026-04-26 12:49:40] FATAL: Array
+(
+    [type] => 1
+    [message] => Cannot redeclare getTesseraScalareAlertThresholdFromCostanti() (previously declared in /share/CE_CACHEDEV1_DATA/Web/anpr/api/emit_receipt_plate.php:32)
+    [file] => /share/CE_CACHEDEV1_DATA/Web/anpr/api/functions.php
+    [line] => 373
+)
+
+[26-Apr-2026 13:37:29 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 13:37:32 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 13:38:47 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 13:38:49 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 14:48:57 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 14:49:00 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 14:55:39 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 14:55:41 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 14:56:43 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 14:56:46 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 14:58:49 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 14:58:51 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 15:11:35 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 15:11:39 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 15:24:10 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 15:24:13 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 15:25:11 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 15:25:13 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 15:33:32 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 15:33:34 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 15:38:39 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 15:38:41 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 15:44:01 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 15:44:04 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 16:00:30 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 16:00:33 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 16:05:37 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 16:05:40 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 16:18:47 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 16:18:49 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 16:37:21 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 16:37:24 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 17:02:47 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 17:02:50 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[26-Apr-2026 17:06:13 Europe/Rome] ✅ Costanti caricate da: /share/CE_CACHEDEV1_DATA/Web/anpr/costanti.txt
+[26-Apr-2026 17:06:15 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (110) Connection timed out
+[27-Apr-2026 10:02:48 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[27-Apr-2026 10:02:51 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[27-Apr-2026 10:29:53 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[27-Apr-2026 10:29:56 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[27-Apr-2026 10:30:20 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[27-Apr-2026 10:30:23 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[27-Apr-2026 10:57:57 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[27-Apr-2026 10:58:00 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[27-Apr-2026 11:00:14 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[27-Apr-2026 11:00:16 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[27-Apr-2026 11:26:20 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[27-Apr-2026 11:26:23 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[27-Apr-2026 11:37:43 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[27-Apr-2026 11:37:46 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[27-Apr-2026 11:54:52 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[27-Apr-2026 11:54:55 Europe/Rome] [emit_receipt_plate] PRINT WARNING: Connessione stampante fallita 192.168.10.123:9100 (10060) Impossibile stabilire la connessione. Risposta non corretta della parte connessa dopo l'intervallo di tempo oppure mancata risposta dall'host collegato
+[28-Apr-2026 11:18:53 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[28-Apr-2026 16:17:01 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[28-Apr-2026 23:05:45 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[28-Apr-2026 23:05:45 Europe/Rome] [emit_receipt_plate] Tessera scalare warning: Call to undefined function mb_strtoupper()
+[28-Apr-2026 23:07:23 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[28-Apr-2026 23:07:23 Europe/Rome] [emit_receipt_plate] Tessera scalare warning: Call to undefined function mb_strtoupper()
+[28-Apr-2026 23:10:40 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[30-Apr-2026 11:12:22 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[01-May-2026 10:01:18 Europe/Rome] ✅ Costanti caricate da: C:\htdocs\anpr/costanti.txt
+[01-May-2026 10:01:18 Europe/Rome] EMIT_RECEIPT_ERROR: Ticket non trovato

@@ -14,9 +14,9 @@ try {
         throw new Exception('operatore_cod obbligatorio');
     }
 
-    // Leggi il turno
+    // ✅ CORRETTO: Leggi il turno (SENZA colonna 'nome')
     $stmt = $db->prepare("
-        SELECT id, operatore_cod, nome, stato, inizio_turno, ore_totali
+        SELECT id, operatore_cod, stato, inizio_turno, ore_totali
         FROM operatori_turni
         WHERE operatore_cod = ?
         LIMIT 1

@@ -5,9 +5,7 @@ date_default_timezone_set('Europe/Rome');
 require_once __DIR__ . '/../config/config.php';
 
 $db = getDatabaseConnection();
-$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-$response = ['success' => false, 'message' => '', 'data' => null];
+$response = ['success' => false, 'message' => ''];
 
 try {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -70,15 +68,15 @@ try {
         throw new Exception("Ricevuta già emessa: ingresso non modificabile");
     }
 
-    // 4) Salva su tickets (1 riga per plate_id) CON fascia NULL
+    // 4) Salva su tickets (1 riga per plate_id)
     // Nota: la tua tabella tickets è unica per plate_id (OK)
     $db->beginTransaction();
 
     // Se la riga tickets non esiste ancora, la creiamo minimal
     // (in modo conservativo: NON tocchiamo altri campi)
     $stmt = $db->prepare("
-        INSERT INTO tickets (plate_id, entry_date, entry_time, fascia)
-        VALUES (?, ?, ?, NULL)
+        INSERT INTO tickets (plate_id, entry_date, entry_time)
+        VALUES (?, ?, ?)
         ON DUPLICATE KEY UPDATE
             entry_date = VALUES(entry_date),
             entry_time = VALUES(entry_time)
@@ -126,3 +124,4 @@ try {
 
 echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 ?>
+

@@ -69,32 +69,42 @@ try {
     $now = new DateTime('now', new DateTimeZone('Europe/Rome'));
     $receiptCode = 'R_' . $now->format('Ymd_His');
 
-    $stmtUp = $db->prepare("
-        INSERT INTO cassa (
-            idpassages, Pticket_code, Pentry_datetime, Pexit_datetime, 
-            Ppaid, PpayC, PpayE, Pannullato, Pannultxt, invoice_price, invoice_code, datacassa, oraincasso, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-            Pticket_code = VALUES(Pticket_code),
-            Pentry_datetime = VALUES(Pentry_datetime),
-            Pexit_datetime = VALUES(Pexit_datetime),
-            Ppaid = VALUES(Ppaid),
-            PpayC = VALUES(PpayC),
-            PpayE = VALUES(PpayE),
-            Pannullato = VALUES(Pannullato),
-            Pannultxt = VALUES(Pannultxt),
-            invoice_price = VALUES(invoice_price),
-            invoice_code = VALUES(invoice_code),
-            datacassa = VALUES(datacassa),
-            oraincasso = VALUES(oraincasso),
-            updated_at = NOW()
-    ");
-    $stmtUp->execute([
-        $passageId, $ticket_code, $entry_datetime, $exit_datetime,
-        $Tpaid, $TpayC, $TpayE, $Tannullato, $Tannultxt,
-        $price, $receiptCode,
-        substr($exit_datetime,0,10), substr($exit_datetime,11,5)
-    ]);
+    $stmt = $db->prepare("
+    INSERT INTO cassa (
+        Tticket_code,
+        Tplate_id,
+        plate_number,
+        Tentry_date,
+        Tentry_time,
+        Texit_date,
+        Texit_time,
+        Tpaid,
+        TpayC,
+        TpayE,
+        Tannullato,
+        Tannultxt,
+        invoice_code,
+        created_at,
+        updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+");
+$stmt->execute([
+    $ticketCode,
+    0,  // plate_id = 0 per i passaggi
+    $plateNumber,
+    $entryDate,
+    $entryTime,
+    $exitDate,
+    $exitTime,
+    $Tpaid,
+    $TpayC,
+    $TpayE,
+    $Tannullato,
+    $Tannultxt,
+    $receiptCode,
+    $nowSql,
+    $nowSql
+]);
 
     $stmt = $db->prepare("
         INSERT INTO invoices_printed

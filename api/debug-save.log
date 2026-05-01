@@ -321,3 +321,37 @@ Array
     [note] => 
 )
 
+[IN] 2026-04-30T10:14:03+02:00 Array
+(
+    [passage_id] => 261
+    [Ppaid] => 1
+    [PpayC] => 1
+    [PpayE] => 0
+    [Pannullato] => 0
+    [Pannultxt] => 
+    [invoice_price] => 3.00
+    [fascia] => F1
+    [Pticket_code] => T20260430-100127-63FF4
+    [entry_datetime] => 2026-04-30 10:01:00
+    [exit_datetime] => 2026-04-30 10:13:00
+    [info] => 
+    [note] => 
+)
+
+[IN] 2026-04-30T11:06:19+02:00 Array
+(
+    [passage_id] => 262
+    [Ppaid] => 0
+    [PpayC] => 0
+    [PpayE] => 0
+    [Pannullato] => 0
+    [Pannultxt] => 
+    [invoice_price] => 0.00
+    [fascia] => F2
+    [Pticket_code] => T20260430-110551-BF925
+    [entry_datetime] => 2026-04-30 11:05:00
+    [exit_datetime] => 
+    [info] => 
+    [note] => 
+)
+
