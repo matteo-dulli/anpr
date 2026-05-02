@@ -32,7 +32,8 @@ function escpos_unlock($lockFp): void {
 }
 
 function escpos_debug_log(string $msg): void {
-  @file_put_contents(__DIR__ . '/escpos_debug.log', '[' . date('Y-m-d H:i:s') . '] ' . $msg . "\n", FILE_APPEND);
+  $logDir = defined('LOGS_DIR') ? LOGS_DIR : __DIR__ . '/../logs';
+  @file_put_contents($logDir . '/escpos_debug.log', '[' . date('Y-m-d H:i:s') . '] ' . $msg . "\n", FILE_APPEND);
 }
 
 /**

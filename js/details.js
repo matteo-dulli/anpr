@@ -642,7 +642,7 @@ if ((!entryDate || !entryTime) && plate.date_detected) {
       </div>
 
       <div class="accordion-content" style="display:block;">
-        <div style="display:grid;grid-template-columns:2fr 2fr 2fr 2fr 2fr 2fr;gap:10px;">
+        <div class="details-form-grid">
           
           <!-- ✅ PATCH: ingresso editabile solo su manuali senza ricevuta -->
           <div class="form-group">
