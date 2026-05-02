@@ -121,13 +121,12 @@ async function renderDetails(plate) {
             globalNore = dataFasce.nore || 5;
         }
     } catch (e) { fasceData = []; }
+    window._fasceDataTarga = fasceData;
     const fasciaSelected = plate.fascia || (fasceData.length > 0 ? fasceData[0].codice : 'F1');
-    fascieOptions = fasceData.map(fascia => `
-        <option value="${fascia.codice}" ${fascia.codice === fasciaSelected ? 'selected' : ''} 
-            data-testo="${fascia.testo}" data-prezzo="${fascia.prezzo}" data-prezzo-day="${fascia.prezzo_day}" data-tolleranza="${fascia.tolleranza || 5}">
-            ${fascia.codice} ${fascia.testo} - H. €${parseFloat(fascia.prezzo).toFixed(2)} - D. €${parseFloat(fascia.prezzo_day).toFixed(2)}
-        </option>
-    `).join('');
+    const _fasciaObj = fasceData.find(f => f.codice === fasciaSelected);
+    const fasciaText = _fasciaObj
+        ? `${_fasciaObj.codice}${_fasciaObj.testo ? ' ' + _fasciaObj.testo : ''} - H. €${parseFloat(_fasciaObj.prezzo).toFixed(2)} - D. €${parseFloat(_fasciaObj.prezzo_day).toFixed(2)}`
+        : fasciaSelected;
 
     // =========== Calcolo Durata ===========
     let durataGiorni = 0, durataOre = 0, durataMinuti = 0;
@@ -160,7 +159,7 @@ async function renderDetails(plate) {
           <div class="form-group"><label>ORA INGRESSO</label><input type="time" id="entryTime" value="${entryTime ? entryTime.slice(0,5) : ''}" ${fieldState("entryTime")}readonly disabled></div>
           <div class="form-group"><label>DATA USCITA</label><input type="date" id="exitDate" value="${exitDate}" ${fieldState("exitDate")}readonly disabled></div>
           <div class="form-group"><label>ORA USCITA</label><input type="time" id="exitTime" value="${exitTime}" ${fieldState("exitTime")}readonly disabled></div>
-          <div class="form-group"><label>FASCIA ORARIA</label><select id="fascia" disabled readonly>${fascieOptions}</select></div>
+          <div class="form-group"><label>FASCIA</label><input type="text" value="${fasciaText}" readonly disabled><input type="hidden" id="fascia" value="${fasciaSelected}"></div>
           <div class="form-group"><label>Giorni</label><input type="number" id="giorni" value="${durataGiorni}" readonly></div>
           <div class="form-group"><label>Ore</label><input type="number" id="ore" value="${durataOre}" readonly></div>
           <div class="form-group"><label>Min</label><input type="number" id="minuti" value="${durataMinuti}" readonly></div>
@@ -399,12 +398,11 @@ function renderPassageDetails(passage, cassa) {
     } catch(e) {
         fasceData = [];
     }
-    fasciaOptions = fasceData.map(fascia => `
-        <option value="${fascia.codice}" ${fascia.codice === selectedFascia ? 'selected' : ''} 
-            data-testo="${fascia.testo}" data-prezzo="${fascia.prezzo}" data-prezzo-day="${fascia.prezzo_day}" data-tolleranza="${fascia.tolleranza || 5}">
-            ${fascia.codice} ${fascia.testo} - H. €${parseFloat(fascia.prezzo).toFixed(2)} - D. €${parseFloat(fascia.prezzo_day).toFixed(2)}
-        </option>
-    `).join('');
+    window._fasceDataPassaggio = fasceData;
+    const _fasciaDisplayObj = fasceData.find(f => f.codice === selectedFascia);
+    const fasciaDisplayText = _fasciaDisplayObj
+        ? `${_fasciaDisplayObj.codice}${_fasciaDisplayObj.testo ? ' ' + _fasciaDisplayObj.testo : ''} - H. €${parseFloat(_fasciaDisplayObj.prezzo).toFixed(2)} - D. €${parseFloat(_fasciaDisplayObj.prezzo_day).toFixed(2)}`
+        : selectedFascia;
 
     // Prendi i dati di ingresso dal passaggio
     let entryDate = '', entryTime = '';
@@ -468,9 +466,8 @@ function renderPassageDetails(passage, cassa) {
           </div>
           <div class="form-group">
             <label>FASCIA</label>
-            <select id="passageFascia" disabled readonly>
-                ${fasciaOptions}
-            </select>
+            <input type="text" value="${fasciaDisplayText}" readonly disabled>
+            <input type="hidden" id="passageFascia" value="${selectedFascia}">
           </div>
           <div class="form-group-small">
             <label>GIORNI</label>
@@ -624,16 +621,16 @@ function calcolaUscitaPerTarga() {
 }
 
 function calcolaPrezzoTarga() {
-    const fasciaSelect  = document.getElementById('fascia');
+    const fasciaEl      = document.getElementById('fascia');
     const priceInput    = document.getElementById('prezzo');
     const entryDateEl   = document.getElementById('entryDate');
     const entryTimeEl   = document.getElementById('entryTime');
     const exitDateEl    = document.getElementById('exitDate');
     const exitTimeEl    = document.getElementById('exitTime');
 
-    if (!fasciaSelect || !fasciaSelect.value) {
-        showToast("Seleziona una fascia oraria", "warning");
-        priceInput.value = "0.00";
+    if (!fasciaEl || !fasciaEl.value) {
+        showToast("Fascia oraria non disponibile", "warning");
+        if (priceInput) priceInput.value = "0.00";
         return;
     }
     const now         = new Date();
@@ -661,20 +658,21 @@ function calcolaPrezzoTarga() {
     // ------ Validazioni --------
     if (isNaN(entry.getTime()) || isNaN(exit.getTime())) {
         showToast("Errore formato data/ora!", "error");
-        priceInput.value = "0.00";
+        if (priceInput) priceInput.value = "0.00";
         return;
     }
     if (entry > exit) {
         showToast("La data/ora di INGRESSO non può essere dopo l'USCITA!", "error");
-        priceInput.value = "0.00";
+        if (priceInput) priceInput.value = "0.00";
         return;
     }
 
-    // ------ Calcolo prezzo (come già tuo) -------
-    const selectedOption   = fasciaSelect.options[fasciaSelect.selectedIndex];
-    const fasciaPrezzo     = parseFloat(selectedOption.dataset.prezzo) || 0;
-    const fasciaPrezzoDay  = parseFloat(selectedOption.dataset.prezzoDay) || 0;
-    const tolleranza       = parseInt(selectedOption.dataset.tolleranza) || 5;
+    // ------ Calcolo prezzo -------
+    const _fasciaCode = fasciaEl.value;
+    const _fasciaData = (window._fasceDataTarga || []).find(f => f.codice === _fasciaCode);
+    const fasciaPrezzo     = _fasciaData ? parseFloat(_fasciaData.prezzo) || 0 : 0;
+    const fasciaPrezzoDay  = _fasciaData ? parseFloat(_fasciaData.prezzo_day) || 0 : 0;
+    const tolleranza       = _fasciaData ? parseInt(_fasciaData.tolleranza) || 5 : 5;
     const nore             = 5;
 
     const minutiTotali = Math.max(0, Math.floor((exit - entry) / 60000));
@@ -775,7 +773,7 @@ function renderImageBoxMeta(obj, tipo = 'targa') {
 }
 
 function calculatePassagePrice() {
-    const fasciaSelect = document.getElementById('passageFascia');
+    const fasciaEl = document.getElementById('passageFascia');
     const priceInput = document.getElementById('passagePrice');
     const entryDateEl = document.getElementById('passageEntryDate');
     const entryTimeEl = document.getElementById('passageEntryTime');
@@ -785,11 +783,14 @@ function calculatePassagePrice() {
     const oreInput = document.getElementById('durataOre');
     const minInput = document.getElementById('durataMin');
 
-    if (!fasciaSelect || !fasciaSelect.value) {
-        showToast("Seleziona una fascia oraria", "warning");
-        priceInput.value = "0.00";
+    if (!fasciaEl || !fasciaEl.value) {
+        showToast("Fascia oraria non disponibile", "warning");
+        if (priceInput) priceInput.value = "0.00";
         return;
     }
+
+    const _fasciaCode = fasciaEl.value;
+    const _fasciaData = (window._fasceDataPassaggio || []).find(f => f.codice === _fasciaCode);
 
     // PATCH: aggiorna DATA e ORA USCITA a questo istante
     const now = new Date();
@@ -812,7 +813,7 @@ function calculatePassagePrice() {
     const entry = new Date(`${entryDate}T${entryTime}:00`);
     const exit = new Date(`${exitDate}T${exitTime}:00`);
     if (entry.getTime() > exit.getTime()) {
-        priceInput.value = "0.00";
+        if (priceInput) priceInput.value = "0.00";
         showToast("La data/ora di INGRESSO non può essere dopo l'USCITA!", "error");
         if (giorniInput) giorniInput.value = 0;
         if (oreInput) oreInput.value = 0;
@@ -820,10 +821,9 @@ function calculatePassagePrice() {
         return;
     }
 
-    const selectedOption = fasciaSelect.options[fasciaSelect.selectedIndex];
-    const fasciaPrezzo = parseFloat(selectedOption.dataset.prezzo) || 0;
-    const fasciaPrezzoDay = parseFloat(selectedOption.dataset.prezzoDay) || 0;
-    const tolleranza = parseInt(selectedOption.dataset.tolleranza) || 5;
+    const fasciaPrezzo = _fasciaData ? parseFloat(_fasciaData.prezzo) || 0 : 0;
+    const fasciaPrezzoDay = _fasciaData ? parseFloat(_fasciaData.prezzo_day) || 0 : 0;
+    const tolleranza = _fasciaData ? parseInt(_fasciaData.tolleranza) || 5 : 5;
     const nore = 5;
 
     const minutiTotali = Math.max(0, Math.floor((exit - entry) / 60000));
@@ -874,7 +874,7 @@ function calcolaUscitaTarga_Fissa() {
 }
 
 function calculatePassagePrice() {
-    const fasciaSelect = document.getElementById('passageFascia');
+    const fasciaEl = document.getElementById('passageFascia');
     const priceInput = document.getElementById('passagePrice'); // <-- deve essere uguale nel markup!
     const entryDateEl = document.getElementById('passageEntryDate');
     const entryTimeEl = document.getElementById('passageEntryTime');
@@ -884,11 +884,14 @@ function calculatePassagePrice() {
     const oreInput = document.getElementById('durataOre');
     const minInput = document.getElementById('durataMin');
 
-    if (!fasciaSelect || !fasciaSelect.value) {
-        showToast("Seleziona una fascia oraria", "warning");
+    if (!fasciaEl || !fasciaEl.value) {
+        showToast("Fascia oraria non disponibile", "warning");
         if(priceInput) priceInput.value = "0.00";
         return;
     }
+
+    const _fasciaCode = fasciaEl.value;
+    const _fasciaData = (window._fasceDataPassaggio || []).find(f => f.codice === _fasciaCode);
 
     // Aggiorna data/ora uscita all'adesso
     const now = new Date();
@@ -916,10 +919,9 @@ function calculatePassagePrice() {
         return;
     }
 
-    const selectedOption = fasciaSelect.options[fasciaSelect.selectedIndex];
-    const fasciaPrezzo = parseFloat(selectedOption.dataset.prezzo) || 0;
-    const fasciaPrezzoDay = parseFloat(selectedOption.dataset.prezzoDay) || 0;
-    const tolleranza = parseInt(selectedOption.dataset.tolleranza) || 5;
+    const fasciaPrezzo = _fasciaData ? parseFloat(_fasciaData.prezzo) || 0 : 0;
+    const fasciaPrezzoDay = _fasciaData ? parseFloat(_fasciaData.prezzo_day) || 0 : 0;
+    const tolleranza = _fasciaData ? parseInt(_fasciaData.tolleranza) || 5 : 5;
     const nore = 5;
 
     const minutiTotali = Math.max(0, Math.floor((exit - entry) / 60000));
@@ -1056,7 +1058,6 @@ function renderPassageDetails(data) {
     // === Recupero fasce orarie per select ===
     let fasceData = [];
     let globalNore = 5;
-    let fasciaOptions = '';
     let selectedFascia = (cassa && cassa.fascia) ? cassa.fascia : (passage.fascia || 'F1');
     try {
         const xhr = new XMLHttpRequest();
@@ -1070,12 +1071,11 @@ function renderPassageDetails(data) {
     } catch (e) {
         fasceData = [];
     }
-    fasciaOptions = fasceData.map(fascia => `
-        <option value="${fascia.codice}" ${fascia.codice === selectedFascia ? 'selected' : ''}
-            data-testo="${fascia.testo}" data-prezzo="${fascia.prezzo}" data-prezzo-day="${fascia.prezzo_day}" data-tolleranza="${fascia.tolleranza || 5}">
-            ${fascia.codice} ${fascia.testo} - H. €${parseFloat(fascia.prezzo).toFixed(2)} - D. €${parseFloat(fascia.prezzo_day).toFixed(2)}
-        </option>
-    `).join('');
+    window._fasceDataPassaggio = fasceData;
+    const _fasciaDisplayObj2 = fasceData.find(f => f.codice === selectedFascia);
+    const fasciaDisplayText = _fasciaDisplayObj2
+        ? `${_fasciaDisplayObj2.codice}${_fasciaDisplayObj2.testo ? ' ' + _fasciaDisplayObj2.testo : ''} - H. €${parseFloat(_fasciaDisplayObj2.prezzo).toFixed(2)} - D. €${parseFloat(_fasciaDisplayObj2.prezzo_day).toFixed(2)}`
+        : selectedFascia;
 
     // Prendi i dati di ingresso dal passaggio
     let entryDate = '', entryTime = '';
@@ -1142,9 +1142,8 @@ function renderPassageDetails(data) {
           </div>
           <div class="form-group">
             <label>FASCIA</label>
-            <select id="passageFascia" disabled readonly>
-                ${fasciaOptions}
-            </select>
+            <input type="text" value="${fasciaDisplayText}" readonly disabled>
+            <input type="hidden" id="passageFascia" value="${selectedFascia}">
           </div>
           <div class="form-group-small">
             <label>GIORNI</label>
