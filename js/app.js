@@ -37,11 +37,6 @@ let autoScanInterval = null;
 let justCreatedManualPlateId = null;
 let connectionStartTime = new Date();
 
-// ===== UM: traccia come è stata aperta la scheda =====
-// 1 = ricerca per targa/tail/secondario o selezione manuale → UM stampato in ricevuta
-// 0 = ricerca per codice ticket completo → UM NON stampato
-window.pendingUM = 0;
-
 // ================== RICERCA TICKET / BARCODE ==================
 async function handleTicketSearch() {
   const searchTicketInput = document.getElementById('searchTicketInfo');
@@ -128,12 +123,9 @@ async function handleTicketSearch() {
           ? new Date(String(row.date_detected).replace(' ', 'T')).toLocaleString('it-IT')
           : '';
 
-        // D1: nasconde il codice ticket nel dropdown quando trovato via barcode secondario/tail
-        const showTicketCode = !row.found_by_secondary;
-
         const meta = [
           isPassage ? `🚶 passaggio#${row.passage_id}` : `🚗 targa#${row.id}`,
-          (showTicketCode && row.ticket_code) ? `🎫 ${row.ticket_code}` : '',
+          row.ticket_code ? `🎫 ${row.ticket_code}` : '',
           when ? `🕒 ${when}` : ''
         ].filter(Boolean).join(' · ');
 
@@ -157,9 +149,6 @@ async function handleTicketSearch() {
           const idx = parseInt(el.dataset.idx, 10);
           const row = results[idx];
           hideTicketSearchDropdown();
-
-          // D2/D1: UM=1 per ricerche non-full (targa, tail, secondario)
-          window.pendingUM = 1;
 
           try {
             // Apri scheda
@@ -225,8 +214,6 @@ async function handleTicketSearch() {
 
     // ✅ Se è codice completo e ho almeno 1 match, apro SUBITO il primo match
     if (isFullTicketCode(query) || isFullReceiptCode(query)) {
-      // D4: ricerca per codice completo → UM=0 (nessun UM in ricevuta)
-      window.pendingUM = 0;
       await applySearchResult(results[0]);
       return;
     }
@@ -338,8 +325,6 @@ function initTicketSearch() {
                                 // ✅ trovato match unico -> apri SUBITO
                                 lastAutoOpenedQuery = q;
                                 hideTicketSearchDropdown();
-                                // D4: auto-open da codice completo → UM=0
-                                window.pendingUM = 0;
                                 await applySearchResult(results[0]);
                                 autoOpenInFlight = false;
                                 return; // stop: già aperto
@@ -501,11 +486,9 @@ async function runTicketSearchAutocomplete(q) {
       const isPassage = Number(row.is_passage) === 1;
       const main = (row.plate_corrected || row.plate_number || '').toString().toUpperCase();
       const when = row.date_detected ? new Date(String(row.date_detected).replace(' ', 'T')).toLocaleString('it-IT') : '';
-      // D1: nasconde codice ticket se trovato via barcode secondario
-      const showTicketCode = !row.found_by_secondary;
       const meta = [
         isPassage ? `🚶 passaggio#${row.passage_id}` : `🚗 targa#${row.id}`,
-        (showTicketCode && row.ticket_code) ? `🎫 ${row.ticket_code}` : '',
+        row.ticket_code ? `🎫 ${row.ticket_code}` : '',
         when ? `🕒 ${when}` : ''
       ].filter(Boolean).join(' · ');
 
@@ -527,9 +510,6 @@ async function runTicketSearchAutocomplete(q) {
         const idx = parseInt(el.dataset.idx, 10);
         const row = results[idx];
         hideTicketSearchDropdown();
-
-        // D1/D2: UM=1 per tutte le ricerche dall'autocomplete (non-full code)
-        window.pendingUM = 1;
 
         if (Number(row.is_passage) === 1 && row.passage_id) {
           await selectPassage(parseInt(row.passage_id, 10));
