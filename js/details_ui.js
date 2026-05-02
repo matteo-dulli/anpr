@@ -525,19 +525,16 @@ function renderPassageDetails(passage) {
         exitTime = dtOut.toTimeString().slice(0, 5);
     }
 
-    // --- FASCE ORARIE (Carica sincrono: se asincrono vedi nota sotto) ---
+    // --- FASCE ORARIE ---
     let fasceData = window._fasceOrariePassaggi || [
         { codice: "F1", testo: "", prezzo: 2.50, prezzo_day: 15.00, tolleranza: 5 },
         { codice: "F2", testo: "Notte", prezzo: 1.50, prezzo_day: 9.00, tolleranza: 5 }
     ];
-    let fascieOptions = fasceData.map(fascia => `
-        <option value="${fascia.codice}" ${fascia.codice == fasciaSelected ? "selected" : ""}
-            data-prezzo="${fascia.prezzo}" 
-            data-prezzo-day="${fascia.prezzo_day}" 
-            data-tolleranza="${fascia.tolleranza || 5}">
-            ${fascia.codice} ${fascia.testo} - H. €${parseFloat(fascia.prezzo).toFixed(2)} - D. €${parseFloat(fascia.prezzo_day).toFixed(2)}
-        </option>
-    `).join('');
+    window._fasceDataPassaggio = fasceData;
+    const _fasciaDispObj = fasceData.find(f => f.codice == fasciaSelected);
+    const fasciaDispText = _fasciaDispObj
+        ? `${_fasciaDispObj.codice}${_fasciaDispObj.testo ? ' ' + _fasciaDispObj.testo : ''} - H. €${parseFloat(_fasciaDispObj.prezzo).toFixed(2)} - D. €${parseFloat(_fasciaDispObj.prezzo_day).toFixed(2)}`
+        : fasciaSelected;
 
     // Calcolo durata
     let giorni = 0, ore = 0, min = 0;
@@ -572,8 +569,9 @@ function renderPassageDetails(passage) {
             <input type="time" id="passageExitTime" value="${exitTime}">
           </div>
           <div class="form-group">
-            <label>FASCIA ORARIA</label>
-            <select id="passageFascia">${fascieOptions}</select>
+            <label>FASCIA</label>
+            <input type="text" value="${fasciaDispText}" readonly disabled>
+            <input type="hidden" id="passageFascia" value="${fasciaSelected}">
           </div>
           <div class="form-group-small">
             <label>GIORNI</label>

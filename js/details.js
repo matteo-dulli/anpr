@@ -614,13 +614,12 @@ if ((!entryDate || !entryTime) && plate.date_detected) {
     }
   } catch (e) { fasceData = []; }
 
+  window._fasceDataTarga = fasceData;
   const fasciaSelected = plate.fascia || (fasceData.length > 0 ? fasceData[0].codice : 'F1');
-  fascieOptions = fasceData.map(fascia => `
-    <option value="${fascia.codice}" ${fascia.codice === fasciaSelected ? 'selected' : ''} 
-      data-testo="${fascia.testo}" data-prezzo="${fascia.prezzo}" data-prezzo-day="${fascia.prezzo_day}" data-tolleranza="${fascia.tolleranza || 5}">
-      ${fascia.codice} ${fascia.testo} - H. €${parseFloat(fascia.prezzo).toFixed(2)} - D. €${parseFloat(fascia.prezzo_day).toFixed(2)}
-    </option>
-  `).join('');
+  const _fasciaObj = fasceData.find(f => f.codice === fasciaSelected);
+  const fasciaText = _fasciaObj
+    ? `${_fasciaObj.codice}${_fasciaObj.testo ? ' ' + _fasciaObj.testo : ''} - H. €${parseFloat(_fasciaObj.prezzo).toFixed(2)} - D. €${parseFloat(_fasciaObj.prezzo_day).toFixed(2)}`
+    : fasciaSelected;
 
   function fieldStateLocal(id) {
     // campi sempre editabili anche se ricevuta esiste
@@ -671,8 +670,9 @@ if ((!entryDate || !entryTime) && plate.date_detected) {
           </div>
 
           <div class="form-group">
-            <label>FASCIA ORARIA</label>
-            <select id="fascia" ${fieldStateLocal("fascia")}>${fascieOptions}</select>
+            <label>FASCIA</label>
+            <input type="text" value="${fasciaText}" readonly disabled>
+            <input type="hidden" id="fascia" value="${fasciaSelected}">
           </div>
         </div>
 
@@ -1317,18 +1317,18 @@ function calcolaPrezzoTarga() {
     const __nowTs = Date.now();
     const __canToast = (__nowTs - window.__lastPrezzoToastTs) >= 400;
 
-    const fasciaSelect  = document.getElementById('fascia');
+    const fasciaEl      = document.getElementById('fascia');
     const priceInput    = document.getElementById('prezzo');
     const entryDateEl   = document.getElementById('entryDate');
     const entryTimeEl   = document.getElementById('entryTime');
     const exitDateEl    = document.getElementById('exitDate');
     const exitTimeEl    = document.getElementById('exitTime');
 
-    if (!fasciaSelect || !fasciaSelect.value) {
+    if (!fasciaEl || !fasciaEl.value) {
         if (priceInput) priceInput.value = "0.00";
         if (__canToast) {
             window.__lastPrezzoToastTs = __nowTs;
-            showToast("Seleziona una fascia oraria", "warning");
+            showToast("Fascia oraria non disponibile", "warning");
         }
         return;
     }
@@ -1377,10 +1377,11 @@ function calcolaPrezzoTarga() {
 
 // ------ Calcolo prezzo (CORRETTO: regola tolleranza + scatti orari + Nore + day + extra oltre 24h) -------
 
-const selectedOption  = fasciaSelect.options[fasciaSelect.selectedIndex];
-const fasciaPrezzo    = parseFloat(selectedOption.dataset.prezzo) || 0;       // €/ora
-const fasciaPrezzoDay = parseFloat(selectedOption.dataset.prezzoDay) || 0;    // €/giorno (24h)
-const tolleranza      = parseInt(selectedOption.dataset.tolleranza, 10) || 5; // minuti
+const _fasciaCode = fasciaEl.value;
+const _fasciaData = (window._fasceDataTarga || []).find(f => f.codice === _fasciaCode);
+const fasciaPrezzo    = _fasciaData ? parseFloat(_fasciaData.prezzo) || 0 : 0;       // €/ora
+const fasciaPrezzoDay = _fasciaData ? parseFloat(_fasciaData.prezzo_day) || 0 : 0;    // €/giorno (24h)
+const tolleranza      = _fasciaData ? parseInt(_fasciaData.tolleranza, 10) || 5 : 5; // minuti
 
 // ✅ Nore: usa quello globale da get_fasce.php se disponibile, altrimenti 5
 const nore = (typeof globalNore !== 'undefined' && Number(globalNore) > 0) ? Number(globalNore) : 5;
@@ -1587,7 +1588,7 @@ imageBox.innerHTML = html;
 
 
 function calculatePassagePrice() {
-    const fasciaSelect = document.getElementById('passageFascia');
+    const fasciaEl = document.getElementById('passageFascia');
     const priceInput = document.getElementById('passagePrice'); // <-- deve essere uguale nel markup!
     const entryDateEl = document.getElementById('passageEntryDate');
     const entryTimeEl = document.getElementById('passageEntryTime');
@@ -1597,11 +1598,14 @@ function calculatePassagePrice() {
     const oreInput = document.getElementById('durataOre');
     const minInput = document.getElementById('durataMin');
 
-    if (!fasciaSelect || !fasciaSelect.value) {
-        showToast("Seleziona una fascia oraria", "warning");
+    if (!fasciaEl || !fasciaEl.value) {
+        showToast("Fascia oraria non disponibile", "warning");
         if(priceInput) priceInput.value = "0.00";
         return;
     }
+
+    const _fasciaCode = fasciaEl.value;
+    const _fasciaData = (window._fasceDataPassaggio || []).find(f => f.codice === _fasciaCode);
 
     // Aggiorna data/ora uscita all'adesso
     const now = new Date();
@@ -1629,10 +1633,9 @@ function calculatePassagePrice() {
         return;
     }
 
-    const selectedOption = fasciaSelect.options[fasciaSelect.selectedIndex];
-    const fasciaPrezzo = parseFloat(selectedOption.dataset.prezzo) || 0;
-    const fasciaPrezzoDay = parseFloat(selectedOption.dataset.prezzoDay) || 0;
-    const tolleranza = parseInt(selectedOption.dataset.tolleranza) || 5;
+    const fasciaPrezzo = _fasciaData ? parseFloat(_fasciaData.prezzo) || 0 : 0;
+    const fasciaPrezzoDay = _fasciaData ? parseFloat(_fasciaData.prezzo_day) || 0 : 0;
+    const tolleranza = _fasciaData ? parseInt(_fasciaData.tolleranza) || 5 : 5;
     const nore = 5;
 
     const minutiTotali = Math.max(0, Math.floor((exit - entry) / 60000));
@@ -1849,14 +1852,11 @@ window.renderPassageDetails = function renderPassageDetails(data, cassaMaybe) {
     fasceData = [];
   }
 
-  fasciaOptions = fasceData.map(fascia => `
-    <option value="${fascia.codice}" ${fascia.codice === selectedFascia ? 'selected' : ''} 
-      data-testo="${fascia.testo}" data-prezzo="${fascia.prezzo}" data-prezzo-day="${fascia.prezzo_day}" data-tolleranza="${fascia.tolleranza || 5}">
-      ${fascia.codice} ${fascia.testo} - H. €${parseFloat(fascia.prezzo).toFixed(2)} - D. €${parseFloat(fascia.prezzo_day).toFixed(2)}
-    </option>
-  `).join('');
-
-  // ===== Helper parse datetime robusto =====
+  window._fasceDataPassaggio = fasceData;
+  const _fasciaDisplayObj = fasceData.find(f => f.codice === selectedFascia);
+  const fasciaDisplayText = _fasciaDisplayObj
+    ? `${_fasciaDisplayObj.codice}${_fasciaDisplayObj.testo ? ' ' + _fasciaDisplayObj.testo : ''} - H. €${parseFloat(_fasciaDisplayObj.prezzo).toFixed(2)} - D. €${parseFloat(_fasciaDisplayObj.prezzo_day).toFixed(2)}`
+    : selectedFascia;
   const _parseSqlDT = (s) => {
     if (!s) return null;
     const dt = new Date(String(s).replace(' ', 'T'));
@@ -1961,9 +1961,8 @@ window.renderPassageDetails = function renderPassageDetails(data, cassaMaybe) {
 
           <div class="form-group">
             <label>FASCIA</label>
-            <select id="passageFascia" ${fieldLock("fascia")} >
-              ${fasciaOptions}
-            </select>
+            <input type="text" value="${fasciaDisplayText}" readonly disabled>
+            <input type="hidden" id="passageFascia" value="${selectedFascia}">
           </div>
 
           <div class="form-group-small">
