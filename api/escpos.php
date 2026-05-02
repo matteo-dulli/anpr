@@ -37,11 +37,10 @@ function escpos_debug_log(string $msg): void {
 }
 
 /**
- * Estrae "BARCODE: xxx" o "BARCODE_SILENT: xxx" dal testo ticket/ricevuta.
- * Ritorna '' se non presente.
+ * Estrae "BARCODE: xxx" dal testo ricevuta. Ritorna '' se non presente.
  */
 function escpos_extract_barcode_from_txt(string $txt): string {
-  if (preg_match('/^\s*BARCODE(?:_SILENT)?\s*:\s*(.+?)\s*$/mi', $txt, $m)) {
+  if (preg_match('/^\s*BARCODE\s*:\s*(.+?)\s*$/mi', $txt, $m)) {
     return trim((string)$m[1]);
   }
   return '';
@@ -205,17 +204,13 @@ $printedHeader = $false
 foreach($line in $lines){
   $t = $line.Trim()
 
-  if($t -like "BARCODE:*" -or $t -like "BARCODE_SILENT:*"){
+  if($t -like "BARCODE:*"){
     $y += 8
     $x = 20   # quiet zone
-    $isSilent = $t -like "BARCODE_SILENT:*"
 
-    # valore: preferisci quello presente nel TXT ("BARCODE: xxx" o "BARCODE_SILENT: xxx")
+    # valore: preferisci quello presente nel TXT ("BARCODE: xxx")
     $bcValue = ""
-    try {
-      if($isSilent){ $bcValue = $t.Substring(14).Trim() }
-      else { $bcValue = $t.Substring(8).Trim() }
-    } catch { $bcValue = "" }
+    try { $bcValue = $t.Substring(8).Trim() } catch { $bcValue = "" }
     if($bcValue -eq "") { $bcValue = $Barcode }
 
     if($bcImg -ne $null){
@@ -224,17 +219,11 @@ foreach($line in $lines){
       $g.DrawImage($bcImg, $x, $y, $bcImg.Width, $bcImg.Height) | Out-Null
       $y += ($bcImg.Height + 6)
 
-      # BARCODE_SILENT: non stampare il testo sotto il barcode
-      if(-not $isSilent){
-        $g.DrawString($bcValue, $mono, $brush, $x, $y) | Out-Null
-        $y += 18
-      }
+      $g.DrawString($bcValue, $mono, $brush, $x, $y) | Out-Null
+      $y += 18
     } else {
-      # fallback testo: solo se NON silent
-      if(-not $isSilent){
-        $g.DrawString($bcValue, $monoBold, $brush, $x, $y) | Out-Null
-        $y += 22
-      }
+      $g.DrawString($bcValue, $monoBold, $brush, $x, $y) | Out-Null
+      $y += 22
     }
 
     $y += 10
