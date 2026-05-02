@@ -1072,9 +1072,9 @@ function renderPassageDetails(data) {
         fasceData = [];
     }
     window._fasceDataPassaggio = fasceData;
-    const _fasciaDisplayObj2 = fasceData.find(f => f.codice === selectedFascia);
-    const fasciaDisplayText = _fasciaDisplayObj2
-        ? `${_fasciaDisplayObj2.codice}${_fasciaDisplayObj2.testo ? ' ' + _fasciaDisplayObj2.testo : ''} - H. €${parseFloat(_fasciaDisplayObj2.prezzo).toFixed(2)} - D. €${parseFloat(_fasciaDisplayObj2.prezzo_day).toFixed(2)}`
+    const _fasciaDisplayObj = fasceData.find(f => f.codice === selectedFascia);
+    const fasciaDisplayText = _fasciaDisplayObj
+        ? `${_fasciaDisplayObj.codice}${_fasciaDisplayObj.testo ? ' ' + _fasciaDisplayObj.testo : ''} - H. €${parseFloat(_fasciaDisplayObj.prezzo).toFixed(2)} - D. €${parseFloat(_fasciaDisplayObj.prezzo_day).toFixed(2)}`
         : selectedFascia;
 
     // Prendi i dati di ingresso dal passaggio
