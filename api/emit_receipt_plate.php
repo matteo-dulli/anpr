@@ -77,6 +77,7 @@ try {
 
     $plateId = isset($body['plate_id']) ? (int)$body['plate_id'] : 0;
     $price   = isset($body['price']) ? floatval($body['price']) : 0;
+    $um      = isset($body['um']) ? (int)$body['um'] : 0;
 
     if ($plateId <= 0) throw new Exception('ID targa non valido: ' . $plateId);
 
@@ -254,6 +255,17 @@ try {
     $stmt = $db->prepare("SELECT idcassa FROM cassa WHERE invoice_code = ? LIMIT 1");
     $stmt->execute([$receiptCode]);
     if ($stmt->rowCount() === 0) throw new Exception("Ricevuta NON salvata in cassa!");
+
+    // Salva UM su tickets_printed se richiesto
+    $ticketsPrintedId = (int)($ticket['tickets_printed_id'] ?? 0);
+    if ($ticketsPrintedId > 0 && $um > 0) {
+        try {
+            $stmtUm = $db->prepare("UPDATE tickets_printed SET um = 1 WHERE id = ? LIMIT 1");
+            $stmtUm->execute([$ticketsPrintedId]);
+        } catch (Throwable $eUm) {
+            error_log('[emit_receipt_plate] WARN um update: ' . $eUm->getMessage());
+        }
+    }
 
     $stmt = $db->prepare("INSERT INTO invoices (receipt_code, price, created_at, updated_at) VALUES (?, ?, ?, ?)");
     $stmt->execute([$receiptCode, $price, $nowSql, $nowSql]);

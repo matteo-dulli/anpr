@@ -1,5 +1,12 @@
 console.log('🎫 ticket.js caricato');
 
+// Restituisce la parte finale del codice ticket dopo l'ultimo trattino (es. "D27BE")
+function ticketCodeTail(code) {
+    if (!code) return '';
+    const idx = code.lastIndexOf('-');
+    return idx >= 0 ? code.slice(idx + 1) : code;
+}
+
 // ===== RENDER ELENCO TARGHE + PASSAGGI (SENZA CESTINO) =====
 function updatePlatesList(list) {
     const container = document.getElementById('platesList');
@@ -32,6 +39,15 @@ function updatePlatesList(list) {
                 ? '<div class="plate-badge">MANUALE</div>'
                 : '');
 
+        // G2: passaggi con ticket emesso oggi mostrano solo il tail del ticket code
+        let ticketBadge = '';
+        if (isPassage && plate.ticket_code) {
+            const tail = ticketCodeTail(plate.ticket_code);
+            if (tail) {
+                ticketBadge = `<div class="plate-badge" style="background:#e8f5e9;color:#2e7d32;">🎫 ${tail}</div>`;
+            }
+        }
+
         const dataPlateId  = plate.id;
         const dataIsPass   = isPassage ? '1' : '0';
         const dataPassId   = isPassage ? (plate.passage_id || Math.abs(plate.id)) : '';
@@ -46,6 +62,7 @@ function updatePlatesList(list) {
                     <div class="plate-time">${dateText}</div>
                     <div class="plate-badge">${originLabel}</div>
                     ${extraBadge}
+                    ${ticketBadge}
                 </div>
             </div>
         `;
@@ -55,7 +72,10 @@ function updatePlatesList(list) {
     document.querySelectorAll('.plate-item').forEach(item => {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
+            // D3: selezione manuale dalla prima colonna → UM=1
+            window.pendingUM = 1;
+
             const isPassage = item.dataset.isPassage === '1';
             
             if (isPassage) {

@@ -76,6 +76,9 @@ if ($isManualPlate && $bodyEntryDate !== '' && $bodyEntryTime !== '') {
     $randPart  = substr(strtoupper(bin2hex(random_bytes(4))), 0, 5);
     $ticketCode = "T{$codeDate}-{$randPart}";
 
+    // Barcode secondario = ultima parte dopo l'ultimo trattino (es. "D27BE")
+    $ticketTail = $randPart;
+
     error_log("DEBUG: About to INSERT into tickets_printed with: ticket_code={$ticketCode}, plate_id={$plateId}, entry_datetime={$entryDateTime}");
 
     // ===== 5. SALVA IN tickets_printed =====
@@ -87,15 +90,17 @@ $stmt = $db->prepare("
         plate_id,
         plate_number,
         entry_datetime,
-        fascia
-    ) VALUES (?, ?, ?, ?, ?)
+        fascia,
+        secondary_barcode
+    ) VALUES (?, ?, ?, ?, ?, ?)
 ");
 $stmt->execute([
     $ticketCode,
     $plateId ?: null,
     $plateNumber,
     $entryDateTime,
-    $fascia
+    $fascia,
+    $ticketTail
 ]);
 
     $printedId = (int)$db->lastInsertId();
@@ -144,7 +149,7 @@ $stmt->execute([
 
     $plateLine = $plateNumber ? ('TARGA: ' . $plateNumber) : 'TARGA: __________';
 
-    // ===== 7. COSTRUISCI TESTO BIGLIETTO (PER FILE DI STAMPA) =====
+    // ===== 7. COSTRUISCI TESTO BIGLIETTO PRIMARIO (PER FILE DI STAMPA) =====
     $lines = [];
     $lines[] = str_repeat('=', 32);
     foreach ($garageLines as $gl) {
@@ -153,17 +158,42 @@ $stmt->execute([
         }
     }
     $lines[] = str_repeat('-', 32);
-    $lines[] = 'TICKET: ' . $ticketCode;
+    // A1: mostra solo il tail (es. D27BE) invece del codice completo
+    $lines[] = 'TICKET: ' . $ticketTail;
     $lines[] = $plateLine;
+    // A3: per passaggio (plateId === 0), aggiungi CLASSE con la fascia
+    if ($plateId === 0 && !empty($fascia)) {
+        $lines[] = 'CLASSE: ' . $fascia;
+    }
     $lines[] = 'INGRESSO: ' . $entryDate . '  ' . $entryTime;
     $lines[] = str_repeat('-', 32);
     $lines[] = $footer;
     $lines[] = '';
-    $lines[] = 'BARCODE: ' . $ticketCode; // qui il servizio di stampa genera il codice a barre vero
+    // A2: usa BARCODE_SILENT per stampare il barcode senza testo visibile
+    $lines[] = 'BARCODE_SILENT: ' . $ticketTail;
     $lines[] = str_repeat('=', 32);
     $lines[] = ''; // riga vuota finale
 
     $ticketText = implode(PHP_EOL, $lines);
+
+    // ===== 7b. COSTRUISCI TESTO MINI-TICKET (secondo biglietto) =====
+    $miniLines = [];
+    $miniLines[] = str_repeat('=', 32);
+    $miniLines[] = $garage['ragione_sociale'];
+    $miniLines[] = str_repeat('-', 32);
+    $miniLines[] = $plateLine;
+    // B: CLASSE nel mini-ticket (sia targa che passaggio, se fascia disponibile)
+    if (!empty($fascia)) {
+        $miniLines[] = 'CLASSE: ' . $fascia;
+    }
+    $miniLines[] = 'INGRESSO: ' . $entryDate . '  ' . $entryTime;
+    $miniLines[] = '';
+    // B1: barcode secondario = tail del primario, senza testo
+    $miniLines[] = 'BARCODE_SILENT: ' . $ticketTail;
+    $miniLines[] = str_repeat('=', 32);
+    $miniLines[] = '';
+
+    $miniTicketText = implode(PHP_EOL, $miniLines);
 
     // ===== 8. SCRIVI FILE DI TESTO IN PRINT_DIR =====
     // ❌ VECCHIO (DISATTIVATO): scriveva nella cartella locale ../print e non in PRINT_DIR
@@ -190,25 +220,38 @@ $stmt->execute([
         throw new Exception('Impossibile scrivere il file di stampa: ' . $fullPath);
     }
 
-    // ✅ NEW: stampa ESC/POS "carina A" + barcode vero (CODE128) usando il file TXT
-    // Nota: non modifichiamo il TXT, lo usiamo come sorgente.
-    $printResult = escpos_print_txt_with_barcode_from_file($fullPath, $ticketCode);
-    // $printResult = ['success'=>bool,'message'=>string] - non è fatale se la stampante non risponde
+    // Scrivi il file del mini-ticket
+    $miniFilename = 'MINI_' . $ticketCode . '.txt';
+    $miniFullPath = $printDir . DIRECTORY_SEPARATOR . $miniFilename;
+    if (file_put_contents($miniFullPath, $miniTicketText) === false) {
+        error_log('[emit_ticket] WARN: impossibile scrivere mini-ticket: ' . $miniFullPath);
+    }
+
+    // ✅ Stampa ticket primario (CODE128 senza testo)
+    $printResult = escpos_print_txt_with_barcode_from_file($fullPath, $ticketTail);
     if (!$printResult['success']) {
-        error_log('[emit_ticket] PRINT WARNING: ' . $printResult['message']);
+        error_log('[emit_ticket] PRINT WARNING (primario): ' . $printResult['message']);
+    }
+
+    // ✅ Stampa mini-ticket subito dopo (con taglio implicito alla fine della stampa)
+    $printMiniResult = escpos_print_txt_with_barcode_from_file($miniFullPath, $ticketTail);
+    if (!$printMiniResult['success']) {
+        error_log('[emit_ticket] PRINT WARNING (mini): ' . $printMiniResult['message']);
     }
 
     // ===== 9. PREPARA RISPOSTA JSON =====
     $ticketData = [
-        'ticket_id'      => $printedId,
-        'ticket_code'    => $ticketCode,
-        'plate_id'       => $plateId ?: null,
-        'plate_number'   => $plateNumber,
-        'entry_datetime' => $entryDateTime,
-        'entry_date_it'  => $entryDate,
-        'entry_time_it'  => $entryTime,
-        'passage_id'     => $passageId,
-        'garage'         => [
+        'ticket_id'          => $printedId,
+        'ticket_code'        => $ticketCode,
+        'ticket_tail'        => $ticketTail,
+        'secondary_barcode'  => $ticketTail,
+        'plate_id'           => $plateId ?: null,
+        'plate_number'       => $plateNumber,
+        'entry_datetime'     => $entryDateTime,
+        'entry_date_it'      => $entryDate,
+        'entry_time_it'      => $entryTime,
+        'passage_id'         => $passageId,
+        'garage'             => [
             'ragione_sociale' => $garage['ragione_sociale'],
             'nome_cognome'    => $garage['nome_cognome'],
             'indirizzo'       => $garage['indirizzo'],
@@ -221,11 +264,13 @@ $stmt->execute([
             'cell'            => $garage['cell'],
             'email'           => $garage['email'],
         ],
-        'footer'         => $footer,
-        'barcode_value'  => $ticketCode,
-        'print_file'     => $fullPath,
+        'footer'             => $footer,
+        'barcode_value'      => $ticketTail,
+        'print_file'         => $fullPath,
+        'mini_ticket_file'   => $miniFullPath,
         // ✅ NEW: feedback stampa
-        'printer'        => $printResult
+        'printer'            => $printResult,
+        'printer_mini'       => $printMiniResult
     ];
 
     $response['success'] = true;

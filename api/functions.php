@@ -100,7 +100,7 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
 
     $data = null;
 
-    // ===== 1) QUERY COMPLETA (JOIN con cassa/plates) =====
+    // ===== 1) QUERY COMPLETA (JOIN con cassa/plates/tickets_printed) =====
     try {
         $stmt = $db->prepare("
             SELECT
@@ -124,10 +124,14 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
 
                 COALESCE(c.invoice_price, c.prezzo, ip.price) AS prezzo,
                 COALESCE(c.Pticket_code, c.Tticket_code) AS ticket_code,
-                c.idpassages
+                c.idpassages,
+
+                COALESCE(tp2.fascia, c.fascia, '') AS fascia,
+                COALESCE(tp2.um, 0) AS um
             FROM invoices_printed ip
             LEFT JOIN cassa c ON c.invoice_code = ip.receipt_code
             LEFT JOIN plates p ON p.id = c.Tplate_id
+            LEFT JOIN tickets_printed tp2 ON tp2.ticket_code = COALESCE(c.Pticket_code, c.Tticket_code)
             WHERE ip.receipt_code = ?
             LIMIT 1
         ");
@@ -241,6 +245,15 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
     $plateNumber = !empty($data['plate_number']) ? $data['plate_number'] : '-';
     $plateId     = isset($data['plate_id']) ? $data['plate_id'] : '-';
 
+    // ===== FASCIA E UM =====
+    $fascia = trim((string)($data['fascia'] ?? ''));
+    $um     = (int)($data['um'] ?? 0);
+
+    // Riga TARGA con CLASSE (se disponibile) e UM (se um=1)
+    $umLabel = $um ? '   UM' : '';
+    $fasciaLabel = $fascia !== '' ? ('   CLASSE: ' . $fascia) : '';
+    $targaLine = "TARGA: {$plateNumber}{$fasciaLabel}{$umLabel}";
+
     // ===== TESSERA LINE (come tua, robusta) =====
     $tesseraLineFinal = '';
     $rc = trim((string)($data['receipt_code'] ?? $receiptCode ?? ''));
@@ -268,7 +281,7 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
         }
     }
 
-    // ===== CORPO RICEVUTA (FORMATO INVARIATO) =====
+    // ===== CORPO RICEVUTA (NUOVO FORMATO) =====
     $body =
 "================================
 {$ragione_sociale}
@@ -278,12 +291,10 @@ Tel: {$tel}   Cell: {$cell}
 Email: {$email}
 --------------------------------
 RICEVUTA: {$data['receipt_code']}
-{$ticketLine}{$passageLine}TARGA: {$plateNumber}
-ID_TARGA: {$plateId}
+{$ticketLine}{$passageLine}{$targaLine}
 INGRESSO: {$ingresso}
 USCITA:   {$uscita}
-DURATA:   {$durata}
-IMPORTO:  € {$importo}
+DURATA:   {$durata} - IMPORTO: € {$importo}
 {$tesseraLineFinal}--------------------------------
 Presentare questo biglietto al ritiro del veicolo. 
 Present this ticket when collecting the vehicle.
