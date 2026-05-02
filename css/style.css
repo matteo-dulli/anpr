@@ -831,36 +831,11 @@ html, body {
 }
 
 /* ===== RESPONSIVE ===== */
-
-/* <1280px: 2 colonne, colonna destra sempre visibile sotto */
-@media (max-width: 1279px) {
+@media (max-width: 1024px) {
   .main-layout {
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 1fr;
     height: auto;
-    min-height: calc(100vh - 50px - 50px);
-    overflow-y: auto;
   }
-  .image-section {
-    grid-column: 1 / -1;
-    min-width: 0 !important;
-    max-width: none !important;
-  }
-  html, body {
-    overflow: auto;
-  }
-}
-
-/* ===== FORM DETAILS GRID (responsive) ===== */
-.details-form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
-}
-
-/* Fascia select: assicura larghezza minima per non tagliare il testo */
-#fascia,
-#passageFascia {
-  min-width: 200px;
 }
 
 /* Ingrandisci solo Giorni, Ricerca Targa e Ticket nella barra in alto */
@@ -998,6 +973,12 @@ html, body {
   font-size: 13px;
   flex: 1;
 }
+#imageBox, .image-section {
+  min-width: 340px !important;
+  max-width: 410px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
 
 .image-box-inner {
   width: 100%;
@@ -1014,6 +995,18 @@ html, body {
 .image-meta {
   min-width: 320px;
   /* oppure width: 100%; a seconda del layout, provale entrambe */
+}
+/* Forza larghezza box meta/immagine terza colonna */
+#imageBox, .image-section {
+  min-width: 340px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.image-meta, .image-box-inner {
+  min-width: 320px !important;
+  width: 100% !important;
+  box-sizing: border-box;
 }
 
 /* Passaggio: rendi gruppo importi grande, ore/min piccoli */
@@ -1082,19 +1075,17 @@ html, body {
   border-radius: 4px;
 }
 
-@media (min-width: 1280px) {
-  #imageBox, .image-section {
-    min-width: 340px !important;
-    max-width: 410px !important;
-    width: 100%;
-    box-sizing: border-box;
-  }
+#imageBox, .image-section {
+  min-width: 340px !important;
+  max-width: 410px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
 
-  .image-meta, .image-box-inner {
-    min-width: 320px !important;
-    width: 100% !important;
-    box-sizing: border-box;
-  }
+.image-meta, .image-box-inner {
+  min-width: 320px !important;
+  width: 100% !important;
+  box-sizing: border-box;
 }
 .dettagli-button-row {
   display: flex;
@@ -1463,4 +1454,7 @@ input#giorni, input#ore, input#minuti,
   color: #9ca3af !important;   /* grigio */
   opacity: 0.9 !important;
   filter: grayscale(1) !important;
+}
+#fascia{
+  min-width: 220px;   /* prova 220 / 240 / 260 finché non taglia più */
 }

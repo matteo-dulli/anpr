@@ -10,7 +10,7 @@ try {
     $body = $raw ? json_decode($raw, true) : [];
 
     // 🔍 DEBUG: salva sempre il body completo ricevuto
-    file_put_contents(LOGS_DIR . '/debug-save.log', "[IN] ".date('c')." ".print_r($body, true) . "\n", FILE_APPEND);
+    file_put_contents(__DIR__.'/debug-save.log', "[IN] ".date('c')." ".print_r($body, true) . "\n", FILE_APPEND);
 
     $passageId = isset($body['passage_id']) ? (int)$body['passage_id'] : 0;
     $plateId   = isset($body['plate_id']) ? (int)$body['plate_id'] : 0; // può servire per targa
