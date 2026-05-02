@@ -15,22 +15,69 @@ try {
     }
 
     $items = [];
+    // ===== 0. CERCA PER BARCODE SECONDARIO (secondary_barcode) =====
+    // Cerca prima la corrispondenza esatta con secondary_barcode; aggiunge il flag
+    // found_by_secondary=true che il JS usa per nascondere il codice ticket nel dropdown.
+    $stmtSec = $db->prepare("
+        SELECT id, ticket_code, plate_id, passage_id, entry_datetime, fascia, secondary_barcode
+        FROM tickets_printed
+        WHERE secondary_barcode = ?
+        LIMIT 1
+    ");
+    $stmtSec->execute([$query]);
+    $secTicket = $stmtSec->fetch(PDO::FETCH_ASSOC);
+
+    if ($secTicket) {
+        if (!empty($secTicket['plate_id']) && (int)$secTicket['plate_id'] > 0) {
+            $stmtP = $db->prepare("
+                SELECT id, plate_number, plate_corrected, date_detected, is_manual, image_path
+                FROM plates WHERE id = ? LIMIT 1
+            ");
+            $stmtP->execute([(int)$secTicket['plate_id']]);
+            $pRow = $stmtP->fetch(PDO::FETCH_ASSOC);
+            if ($pRow) {
+                $items[] = [
+                    'id'               => (int)$pRow['id'],
+                    'plate_number'     => $pRow['plate_number'],
+                    'plate_corrected'  => $pRow['plate_corrected'],
+                    'date_detected'    => $pRow['date_detected'],
+                    'is_manual'        => (int)$pRow['is_manual'],
+                    'image_path'       => $pRow['image_path'],
+                    'is_passage'       => 0,
+                    'passage_id'       => null,
+                    'ticket_code'      => $secTicket['ticket_code'],
+                    'found_by_secondary' => true
+                ];
+            }
+        } elseif (!empty($secTicket['passage_id']) && (int)$secTicket['passage_id'] > 0) {
+            $items[] = [
+                'id'               => -(int)$secTicket['passage_id'],
+                'plate_number'     => '🚶 PASSAGGIO ' . (int)$secTicket['passage_id'],
+                'plate_corrected'  => null,
+                'date_detected'    => $secTicket['entry_datetime'],
+                'is_manual'        => 1,
+                'image_path'       => null,
+                'is_passage'       => 1,
+                'passage_id'       => (int)$secTicket['passage_id'],
+                'ticket_code'      => $secTicket['ticket_code'],
+                'found_by_secondary' => true
+            ];
+        }
+    }
 
     // ===== 1. CERCA IL TICKET IN tickets_printed =====
-    $sqlTickets = "
-        SELECT id, ticket_code, plate_id, passage_id, entry_datetime
-        FROM tickets_printed
-        WHERE ticket_code = ?
-        LIMIT 1
-    ";
-    
-    $stmtTickets = $db->prepare($sqlTickets);
-    $stmtTickets->execute([$query]);
-    $ticket = $stmtTickets->fetch(PDO::FETCH_ASSOC);
+    if (empty($items)) {
+        $stmtTickets = $db->prepare("
+            SELECT id, ticket_code, plate_id, passage_id, entry_datetime
+            FROM tickets_printed
+            WHERE ticket_code = ?
+            LIMIT 1
+        ");
+        $stmtTickets->execute([$query]);
+        $ticket = $stmtTickets->fetch(PDO::FETCH_ASSOC);
 
-    if ($ticket) {
         // ===== SE ABBINATO A UNA TARGA =====
-        if (!empty($ticket['plate_id']) && $ticket['plate_id'] > 0) {
+        if ($ticket && !empty($ticket['plate_id']) && $ticket['plate_id'] > 0) {
             $sqlPlate = "
                 SELECT id, plate_number, plate_corrected, date_detected, is_manual, image_path 
                 FROM plates 
@@ -55,7 +102,7 @@ try {
             }
         }
         // ===== SE ABBINATO A UN PASSAGGIO =====
-        elseif (!empty($ticket['passage_id']) && $ticket['passage_id'] > 0) {
+        elseif ($ticket && !empty($ticket['passage_id']) && $ticket['passage_id'] > 0) {
             $sqlPassage = "
                 SELECT id, entry_datetime, ticket_code, note
                 FROM passages 
@@ -80,7 +127,7 @@ try {
             }
         }
         // ✅ NUOVO: SE TICKET EMESSO STANDALONE (NESSUN ABBINAMENTO) =====
-        else {
+        elseif ($ticket) {
             $items[] = [
                 'id' => -(int)$ticket['id'],
                 'plate_number' => "🎫 TICKET #" . $ticket['id'],

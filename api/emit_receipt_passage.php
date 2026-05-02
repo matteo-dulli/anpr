@@ -29,6 +29,7 @@ try {
     $body = $raw ? json_decode($raw, true) : [];
     $passageId = isset($body['passage_id']) ? (int)$body['passage_id'] : 0;
     $price = isset($body['price']) ? floatval($body['price']) : 0;
+    $um    = isset($body['um']) ? (int)$body['um'] : 0;
 
     $Tpaid = isset($body['Tpaid']) ? (int)$body['Tpaid'] : 0;
     $TpayC = isset($body['TpayC']) ? (int)$body['TpayC'] : 0;
@@ -121,6 +122,20 @@ $stmt->execute([
         $Tannullato,
         $Tannultxt
     ]);
+
+    // Salva UM su tickets_printed collegato al passaggio
+    if ($um > 0) {
+        try {
+            $stmtUm = $db->prepare("
+                UPDATE tickets_printed SET um = 1
+                WHERE passage_id = ?
+                ORDER BY id DESC LIMIT 1
+            ");
+            $stmtUm->execute([$passageId]);
+        } catch (Throwable $eUm) {
+            error_log('[emit_receipt_passage] WARN um update: ' . $eUm->getMessage());
+        }
+    }
 
     $invoiceDir = rtrim(INVOICE_DIR, DIRECTORY_SEPARATOR);
 

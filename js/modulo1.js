@@ -37,7 +37,7 @@ window.Modulo1.mount = async function mountModulo1(container, ctx) {
 
         <div class="form-group">
           <label>Codice Ticket</label>
-          <input type="text" value="${t.ticket_code ?? ''}" readonly>
+          <input type="text" value="${t.ticket_code ? 'TICKET EMESSO' : ''}" readonly>
         </div>
 
         <div class="form-group">

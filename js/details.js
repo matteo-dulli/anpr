@@ -935,6 +935,7 @@ async function emitReceiptPassage() {
   const payload = {
     passage_id: passageId,
     price: price,
+    um: (typeof window.pendingUM !== 'undefined' ? window.pendingUM : 0),
     Tpaid: document.getElementById('paid')?.checked ? 1 : 0,
     TpayC: document.getElementById('pay_cash')?.checked ? 1 : 0,
     TpayE: document.getElementById('pay_electronic')?.checked ? 1 : 0,
@@ -955,6 +956,9 @@ async function emitReceiptPassage() {
 
     if (result.success) {
       showToast('📄 Ricevuta: ' + result.data.receipt_code, 'success', 4000);
+
+      // Reset pendingUM dopo emissione
+      window.pendingUM = 0;
 
       fetch(`${API_BASE}/get_passage.php?id=${passageId}&t=${Date.now()}`, { cache: 'no-store' })
         .then(r => r.json())
@@ -987,13 +991,16 @@ async function emitReceiptPassageById(passageId) {
     const response = await fetch(`${API_BASE}/emit_receipt_passage.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ passage_id: passageId, price })
+      body: JSON.stringify({ passage_id: passageId, price, um: (typeof window.pendingUM !== 'undefined' ? window.pendingUM : 0) })
     });
 
     const result = await response.json();
 
     if (result.success) {
       showToast('📄 Ricevuta: ' + result.data.receipt_code, 'success', 4000);
+
+      // Reset pendingUM dopo emissione
+      window.pendingUM = 0;
 
       // ricarica dettaglio passaggio
       fetch(`${API_BASE}/get_passage.php?id=${passageId}&t=${Date.now()}`, { cache: 'no-store' })
@@ -1507,7 +1514,6 @@ if(priceRaw!==''){const n=Number(priceRaw);priceText=isNaN(n)?String(priceRaw):`
 
 const ticketCode=obj.ticket_code||obj.ticketCode||'-';
 const invoiceCode=obj.invoice_code||'-';
-
 let durata='-';
 let giorni=Number(obj.giorni),ore=Number(obj.ore),min=Number(obj.minuti);
 if(!isNaN(giorni)&&!isNaN(ore)&&!isNaN(min)&&giorni!==null&&ore!==null&&min!==null){durata=`${giorni}g ${ore}h ${min}m`;}
@@ -1535,7 +1541,7 @@ let html=`
 <div class="image-meta-row"><span class="image-meta-label">Ingresso</span><span class="image-meta-value">${ingresso}</span></div>
 <div class="image-meta-row"><span class="image-meta-label">Uscita</span><span class="image-meta-value">${uscita}</span></div>
 ${passageId!=null?`<div class="image-meta-row"><span class="image-meta-label">ID Passaggio</span><span class="image-meta-value">#${passageId}</span></div>`:''}
-<div class="image-meta-row"><span class="image-meta-label">Codice Ticket</span><span class="image-meta-value">${ticketCode}</span></div>
+<div class="image-meta-row"><span class="image-meta-label">Codice Ticket</span><span class="image-meta-value">${ticketCode !== '-' ? 'TICKET EMESSO' : '-'}</span></div>
 <div class="image-meta-row"><span class="image-meta-label">Codice Ricevuta</span><span class="image-meta-value">${invoiceCode}</span></div>
 <div class="image-meta-row"><span class="image-meta-label">Durata Sosta</span><span class="image-meta-value">${durata}</span></div>
 <div class="image-meta-row"><span class="image-meta-label">Costo Sosta</span><span class="image-meta-value">${priceText}</span></div>
@@ -2621,6 +2627,7 @@ async function emettiRicevutaTarga() {
       plate_id: plateId,
       price: price,
       fascia: (document.getElementById('fascia')?.value || '').trim(),
+      um: (typeof window.pendingUM !== 'undefined' ? window.pendingUM : 0),
 
       Tpaid: document.getElementById('paid')?.checked ? 1 : 0,
       TpayC: document.getElementById('pay_cash')?.checked ? 1 : 0,
@@ -2681,6 +2688,9 @@ async function emettiRicevutaTarga() {
 
     const receipt = j.data?.receipt_code || '';
     showToast(receipt ? ('✅ Ricevuta: ' + receipt) : '✅ Ricevuta emessa', 'success', 4500);
+
+    // Reset pendingUM dopo emissione
+    window.pendingUM = 0;
 
     // Refresh scheda targa
     if (typeof loadPlates === 'function') {
