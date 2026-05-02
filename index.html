@@ -293,6 +293,13 @@
       return r.json();
     }
 
+    // ✅ parsing days che supporta 0 (Totale)
+    function getSelectedDays(sel) {
+      const v = parseInt((sel && sel.value != null ? sel.value : '0'), 10);
+      if (Number.isNaN(v)) return 0;
+      return v < 0 ? 0 : v;
+    }
+
     async function initPresenzeTopbar() {
       if (!window.API_BASE) {
         console.error('API_BASE non definito: presenzeTopbar disabilitato');
@@ -303,9 +310,11 @@
       const counter = document.getElementById('presentiCounter');
       if (!sel || !counter) return;
 
-      const j = await fetchPresenti(1);
+      // ✅ carica di default Totale (days=0)
+      const j = await fetchPresenti(0);
       if (!j.success) return;
 
+      // popola select
       sel.innerHTML = '';
       (j.data.options || []).forEach(opt => {
         const o = document.createElement('option');
@@ -314,17 +323,20 @@
         sel.appendChild(o);
       });
 
-      sel.value = '1';
+      // ✅ default selezionato: Totale
+      sel.value = '0';
       counter.textContent = j.data.presenti ?? '-';
 
+      // onchange
       sel.addEventListener('change', async () => {
-        const days = parseInt(sel.value || '1', 10) || 1;
+        const days = getSelectedDays(sel); // ✅ può essere 0
         const jj = await fetchPresenti(days);
         if (jj.success) counter.textContent = jj.data.presenti ?? '-';
       });
 
+      // refresh periodico
       setInterval(async () => {
-        const days = parseInt(sel.value || '1', 10) || 1;
+        const days = getSelectedDays(sel); // ✅ può essere 0
         const jj = await fetchPresenti(days);
         if (jj.success) counter.textContent = jj.data.presenti ?? '-';
       }, 15000);

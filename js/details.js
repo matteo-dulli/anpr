@@ -642,7 +642,7 @@ if ((!entryDate || !entryTime) && plate.date_detected) {
       </div>
 
       <div class="accordion-content" style="display:block;">
-        <div class="details-form-grid">
+        <div style="display:grid;grid-template-columns:2fr 2fr 2fr 2fr 2fr 2fr;gap:10px;">
           
           <!-- ✅ PATCH: ingresso editabile solo su manuali senza ricevuta -->
           <div class="form-group">
@@ -670,10 +670,7 @@ if ((!entryDate || !entryTime) && plate.date_detected) {
             <input type="time" id="exitTime" value="${exitTime}" ${fieldStateLocal("exitTime")} readonly disabled>
           </div>
 
-          <div class="form-group">
-            <label>FASCIA ORARIA</label>
-            <select id="fascia" ${fieldStateLocal("fascia")}>${fascieOptions}</select>
-          </div>
+          <div class="form-group"><label>FASCIA </label><select id="fascia" disabled readonly>${fascieOptions}</select></div>
         </div>
 
         <div class="dettagli-button-row">

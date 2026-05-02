@@ -31,16 +31,17 @@ try {
         }
     }
 
-    // Costruisci opzioni standard (label generate automaticamente)
-    $options = [];
-    for ($d = 1; $d <= $maxDays; $d++) {
-        if ($d === 1) $label = 'Oggi';
-        elseif ($d === 2) $label = 'Oggi + Ieri';
-        elseif ($d === 3) $label = 'Oggi + Ieri + Altroieri';
-        else $label = "Ultimi {$d} giorni";
-        $options[] = ['value' => $d, 'label' => $label];
-    }
+    // ✅ Opzioni standard + Totale
+$options = [];
+$options[] = ['value' => 0, 'label' => 'Totale'];
 
+for ($d = 1; $d <= $maxDays; $d++) {
+    if ($d === 1) $label = 'Oggi';
+    elseif ($d === 2) $label = 'Oggi + Ieri';
+    elseif ($d === 3) $label = 'Oggi + Ieri + Altroieri';
+    else $label = "Ultimi {$d} giorni";
+    $options[] = ['value' => $d, 'label' => $label];
+}
     $response['success'] = true;
     $response['data'] = [
         'max_days' => $maxDays,
