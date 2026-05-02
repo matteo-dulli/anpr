@@ -1,17 +1,20 @@
 <?php
 
+// ================== CONFIG PRIMA DI TUTTO ==================
+require_once __DIR__ . '/../config/config.php';
+
 // ================== DEBUG FATAL ==================
 error_log('[PRINT DEBUG] ticket_code=' . var_export($ticket_code ?? null, true) . ' barcodeValue=' . var_export($barcodeValue ?? null, true) . ' file=' . var_export($fileCreato ?? null, true));
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/emit_receipt_plate_fatal.log');
+ini_set('error_log', LOGS_DIR . '/emit_receipt_plate_fatal.log');
 error_reporting(E_ALL);
 
 register_shutdown_function(function () {
     $e = error_get_last();
     if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
         @file_put_contents(
-            __DIR__ . '/emit_receipt_plate_fatal.log',
+            LOGS_DIR . '/emit_receipt_plate_fatal.log',
             "\n[" . date('Y-m-d H:i:s') . "] FATAL: " . print_r($e, true) . "\n",
             FILE_APPEND
         );
@@ -23,7 +26,6 @@ header('Content-Type: application/json; charset=utf-8');
 if (ob_get_level() > 0) { @ob_clean(); }
 date_default_timezone_set('Europe/Rome');
 
-require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/functions.php';
 
 $db = getDatabaseConnection();
