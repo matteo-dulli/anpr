@@ -122,9 +122,10 @@ require_once __DIR__ . '/escpos.php';
     }
 
     // Barcode secondario = secondary_barcode dal DB, fallback alla coda del ticket_code
+    $pos = strrpos($ticketCode, '-');
     $secondaryBarcode = !empty($ticket['secondary_barcode'])
         ? $ticket['secondary_barcode']
-        : substr($ticketCode, strrpos($ticketCode, '-') + 1);
+        : ($pos !== false ? substr($ticketCode, $pos + 1) : $ticketCode);
 
     // F: NON creare più file con suffisso -1/-2/-3
     // Ristampare direttamente il file originale (già contiene BARCODE_SILENT: tail)

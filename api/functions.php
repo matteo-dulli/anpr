@@ -249,9 +249,10 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
     $fascia = trim((string)($data['fascia'] ?? ''));
     $um     = (int)($data['um'] ?? 0);
 
-    // Riga TARGA con CLASSE e UM (se disponibile)
+    // Riga TARGA con CLASSE (se disponibile) e UM (se um=1)
     $umLabel = $um ? '   UM' : '';
-    $targaLine = "TARGA: {$plateNumber}   CLASSE: {$fascia}{$umLabel}";
+    $fasciaLabel = $fascia !== '' ? ('   CLASSE: ' . $fascia) : '';
+    $targaLine = "TARGA: {$plateNumber}{$fasciaLabel}{$umLabel}";
 
     // ===== TESSERA LINE (come tua, robusta) =====
     $tesseraLineFinal = '';
