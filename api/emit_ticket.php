@@ -158,7 +158,7 @@ $stmt->execute([
         }
     }
     $lines[] = str_repeat('-', 32);
-    $lines[] = 'TICKET: ' . $barcodeSecondary; // mostra solo la parte finale
+    $lines[] = 'TICKET: ' . $barcodeSecondary; // displays suffix only
     $lines[] = $plateLine;
     $lines[] = 'INGRESSO: ' . $entryDate . '  ' . $entryTime;
     $lines[] = str_repeat('-', 32);

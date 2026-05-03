@@ -70,8 +70,8 @@ function updatePlatesList(list) {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
 
-            // Selezione manuale dalla lista: attiva flag UM
-            if (typeof window !== 'undefined') window.currentUM = 1;
+            // Manual selection from list: activate UM flag
+            window.currentUM = 1;
 
             const isPassage = item.dataset.isPassage === '1';
 

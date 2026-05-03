@@ -112,7 +112,7 @@ require_once __DIR__ . '/escpos.php';
         throw new Exception('Ticket non trovato nel database con codice: ' . $ticketCode);
     }
 
-    $barcodeSecondary = $ticket['barcode_secondary'] ?: ticketCodeSuffix($ticketCode);
+    $barcodeSecondary = $ticket['barcode_secondary'];
     $fasciaTicket = $ticket['fascia'] ?? '';
     $plateNumberTicket = $ticket['plate_number'] ?? '';
 
