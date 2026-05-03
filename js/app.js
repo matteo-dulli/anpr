@@ -1,7 +1,8 @@
 // ================== CONFIG GLOBALE ==================
 console.log('🚀 app.js caricato (config globale)');
 
-const API_BASE = '/anpr/api';
+// ✅ usa il valore bootstrappato da index.html, con fallback
+const API_BASE = window.API_BASE || '/anpr/api';
 
 // ================== HELPERS RICERCA (mancanti) ==================
 // Normalizza input: trim, uppercase, rimuove spazi multipli
@@ -41,7 +42,7 @@ function isFullReceiptCode(s) {
 
 let allPlates = [];
 let selectedPlateId = null;
-let selectedIsPassage = false;  // ✅ AGGIUNGI QUESTA LINEA
+let selectedIsPassage = false;
 let selectPlateLock = false;
 let autoRefreshInterval = null;
 let autoScanInterval = null;
@@ -126,6 +127,49 @@ async function handleTicketSearch() {
       if (results.length === 0) {
         showToast('⚠️ Nessun risultato', 'warning', 3000);
         return;
+      }
+
+      // ✅ Se risultato UNICO (tipico del codice secondario univoco), apri subito senza click
+      if (results.length === 1) {
+        const row = results[0];
+
+        // Ricerca non-full-code: attiva UM
+        window.currentUM = 1;
+
+        try {
+          // Apri scheda
+          if (Number(row.is_passage) === 1 && row.passage_id) {
+            if (typeof selectPassage !== 'function') {
+              showToast('⚠️ Gestione passaggi non disponibile in questa versione', 'warning', 4000);
+              if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = false;
+              return;
+            }
+
+            if (typeof updatePassagesList === 'function' || typeof loadPassages === 'function') {
+              if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = true;
+            } else {
+              if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = false;
+            }
+
+            await selectPassage(parseInt(row.passage_id, 10));
+          } else if (row.id) {
+            if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = false;
+            await selectPlate(parseInt(row.id, 10));
+          } else {
+            showToast('⚠️ Risultato non apribile', 'warning', 3000);
+            return;
+          }
+
+          // pulizia input dopo selezione
+          if (searchTicketInput) searchTicketInput.value = '';
+          hideTicketSearchDropdown();
+          return;
+        } catch (e) {
+          console.error('single result open error:', e);
+          if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = false;
+          showToast('❌ Errore apertura scheda', 'error', 4000);
+          return;
+        }
       }
 
       const dd = ensureTicketSearchDropdown();
@@ -284,16 +328,6 @@ async function handleTicketSearch() {
   }
 }
 
-  // ==========================================================
-  // OLD: pulizia subito dell'input
-  // ⚠️ Se pulisci subito, quando dropdown è aperto l’utente non vede cosa ha digitato.
-  // Ti consiglio di NON farlo quando mostriamo il dropdown (sopra, return).
-  // Qui lo lascio ma lo commento.
-  // ==========================================================
-  // if (searchTicketInput) searchTicketInput.value = '';
-  // hideTicketSearchDropdown();
-
-
 function initTicketSearch() {
     const searchTicketInput = document.getElementById('searchTicketInfo');
     if (!searchTicketInput) {
@@ -369,19 +403,6 @@ function initTicketSearch() {
             }
         }, 180);
     });
-
-    // //// VECCHIO: solo Enter cercava exact
-    // searchTicketInput.addEventListener('keydown', (e) => {
-    //     if (e.key === 'Enter') {
-    //         e.preventDefault();
-    //         handleTicketSearch();
-    //         return;
-    //     }
-    //     if (e.key === 'Escape') {
-    //         hideTicketSearchDropdown();
-    //         return;
-    //     }
-    // });
 
     // ✅ resta utile: Enter forza ricerca / Esc chiude
     searchTicketInput.addEventListener('keydown', (e) => {
@@ -469,13 +490,6 @@ function formatSearchRow(row) {
     const receipt = row.receipt_code ? ` → ${row.receipt_code}` : '';
 
     return `${type}: ${displayCode}${receipt}${extra ? '  (' + extra + ')' : ''}`;
-}
-
-async function fetchSearchSuggestions(q) {
-    const url = `${API_BASE}/search_code.php?q=${encodeURIComponent(q)}&mode=prefix&limit=10&t=${Date.now()}`;
-    const resp = await fetch(url, { cache: 'no-store' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    return resp.json();
 }
 
 async function runTicketSearchAutocomplete(q) {
@@ -581,6 +595,7 @@ async function applySearchResult(row) {
         showToast(`🧾 Ricevuta associata: ${row.receipt_code}`, 'info', 3000);
     }
 }
+
 function bindSearchDaysAutoRefresh() {
   const daysEl = document.getElementById('searchDays');
   if (!daysEl) return;
@@ -606,12 +621,9 @@ function bindSearchDaysAutoRefresh() {
         if (openType === 'plate' && keepPlateId && typeof selectPlate === 'function') {
           selectPlate(keepPlateId);
         } else if (openType === 'passage' && keepPassageId) {
-          // dipende da come selezioni un passaggio nel tuo UI
-          // prova: se esiste selectPassage, usala; altrimenti lascia perdere
           if (typeof selectPassage === 'function') {
             selectPassage(keepPassageId);
           } else if (typeof renderPassageDetails === 'function' && keepPassageId) {
-            // fallback: ricarica dati passaggio e renderizza
             fetch(`${API_BASE}/get_passage.php?id=${keepPassageId}&t=${Date.now()}`, { cache: 'no-store' })
               .then(r => r.json())
               .then(j => { if (j.success) renderPassageDetails(j.data); });
@@ -628,23 +640,16 @@ function bindSearchDaysAutoRefresh() {
 }
 
 document.addEventListener('DOMContentLoaded', bindSearchDaysAutoRefresh);
-// fallback se searchDays viene creato dopo
 setTimeout(bindSearchDaysAutoRefresh, 300);
+
 // ================== CARICA TARGHE + PASSAGGI DA API ==================
-// ================== CARICA TARGHE + PASSAGGI DA API ==================
-/**
- * PATCH: AGGIUNTO parametro callback! Viene eseguito DOPO la lista aggiornata.
- * 
- * @param {function} [callback] - funzione da eseguire al termine del caricamento & update
- */
-async function loadPlates(callback, dedupeByPlateNumber = false) { // PATCH: aggiunto parametro callback! (+ flag dedupe opzionale)
+async function loadPlates(callback, dedupeByPlateNumber = false) {
     const daysEl = document.getElementById('searchDays');
     const days = daysEl ? (parseInt(daysEl.value, 10) || 5) : 5;
 
-// ✅ garantisce che la colonna sinistra resti su "Targhe"
-     selectedIsPassage = false;
+    // ✅ garantisce che la colonna sinistra resti su "Targhe"
+    selectedIsPassage = false;
 
-    // ✅ PATCH: stato DB "sto leggendo"
     if (typeof setDbStatus === 'function') setDbStatus('wait');
 
     try {
@@ -655,61 +660,36 @@ async function loadPlates(callback, dedupeByPlateNumber = false) { // PATCH: agg
         if (!response.ok) throw new Error('HTTP ' + response.status);
 
         const data = await response.json();
-        console.log(
-            'loadPlates: data.success=',
-            data.success,
-            'count=',
-            data.count,
-            'len=',
-            Array.isArray(data.data) ? data.data.length : 'n/a'
-        );
 
         if (data.success && Array.isArray(data.data)) {
-            // ✅ PATCH: lettura DB OK
             if (typeof setDbStatus === 'function') setDbStatus('ok');
 
-            // ✅ ORDINA PER DATA/ORA (DECRESCENTE - più nuovi in alto)
             allPlates = data.data.sort((a, b) => {
-                const dateA = a.is_passage === 1 
+                const dateA = a.is_passage === 1
                     ? (a.entry_datetime || a.created_at || a.date_detected || '')
                     : (a.date_detected || a.created_at || '');
-                
-                const dateB = b.is_passage === 1 
+
+                const dateB = b.is_passage === 1
                     ? (b.entry_datetime || b.created_at || b.date_detected || '')
                     : (b.date_detected || b.created_at || '');
-                
+
                 return new Date(dateB) - new Date(dateA);
             });
-            
-            console.log('loadPlates: allPlates.length =', allPlates.length);
 
-            // ===== PATCH #4: deduplica plate_number mostrando solo la versione "prioritaria" =====
-            // FIX: questa deduplica NASCONDE volutamente i duplicati (stesso plate_number).
-            // Per il tuo caso (vuoi vedere anche rilevate + manuali con stesso nome) deve essere disattivata.
+            // ✅ COMPAT: esponi la lista anche come globale (serve a details.js/moduli/altre parti)
+            window.allPlates = allPlates;
+
             if (dedupeByPlateNumber === true) {
                 const plateMap = new Map();
 
-                // FIX: priorità basata su campi REALI restituiti da get_plates.php
-                // - annullato: Tannullato o Pannullato
-                // - pagato: Tpaid o Ppaid o paid (passaggi)
-                // Nota: qui assegniamo priorità più ALTA a:
-                //   2 = annullato (se vuoi nasconderli/mostrarli prima puoi invertire),
-                //   1 = pagato,
-                //   0 = non pagato
                 const getPriority = (p) => {
-                    const isAnnullato =
-                        (Number(p.Tannullato) === 1) || (Number(p.Pannullato) === 1);
-                    const isPagato =
-                        (Number(p.Tpaid) === 1) || (Number(p.Ppaid) === 1) || (Number(p.paid) === 1);
-
+                    const isAnnullato = (Number(p.Tannullato) === 1) || (Number(p.Pannullato) === 1);
+                    const isPagato = (Number(p.Tpaid) === 1) || (Number(p.Ppaid) === 1) || (Number(p.paid) === 1);
                     return isAnnullato ? 2 : (isPagato ? 1 : 0);
                 };
 
                 for (const plate of allPlates) {
-                    // FIX: non deduplicare i passaggi "🚶 PASSAGGIO N" con chiave plate_number,
-                    // altrimenti rischi collisioni/accorpamenti indesiderati.
                     if (plate.is_passage === 1) {
-                        // chiave univoca passaggio: usa id
                         plateMap.set(`passage:${plate.id}`, plate);
                         continue;
                     }
@@ -726,45 +706,30 @@ async function loadPlates(callback, dedupeByPlateNumber = false) { // PATCH: agg
                 }
 
                 allPlates = Array.from(plateMap.values());
-                console.log('loadPlates: dedupe attiva => allPlates.length =', allPlates.length);
-            } else {
-                console.log('loadPlates: dedupe DISATTIVA => duplicati plate_number visibili');
+                window.allPlates = allPlates;
             }
-            // ===== FINE PATCH #4 =====
 
             if (typeof updatePlatesList === 'function') {
-                console.log('loadPlates: chiamo updatePlatesList');
                 updatePlatesList(allPlates);
-            } else {
-                console.warn('loadPlates: updatePlatesList NON è una funzione');
             }
 
             if (typeof updateStats === 'function') {
                 updateStats(data.count ?? allPlates.length);
             }
 
-            if (typeof callback === 'function') {
-                console.log('loadPlates: eseguo callback post-aggiornamento');
-                setTimeout(() => callback(), 0);
-            }
+            if (typeof callback === 'function') setTimeout(() => callback(), 0);
         } else {
-            // ✅ PATCH: risposta API non valida => DB BAD
             if (typeof setDbStatus === 'function') setDbStatus('bad');
-
             allPlates = [];
+            window.allPlates = allPlates;
             if (typeof updatePlatesList === 'function') updatePlatesList(allPlates);
             if (typeof updateStats === 'function') updateStats(0);
-
             if (typeof callback === 'function') setTimeout(() => callback(), 0);
         }
     } catch (error) {
         console.error('❌ Errore caricamento targhe/passaggi:', error);
-
-        // ✅ PATCH: errore rete/API => DB BAD
         if (typeof setDbStatus === 'function') setDbStatus('bad');
-
         showToast('❌ Errore caricamento elenco', 'error', 3000);
-
         if (typeof callback === 'function') setTimeout(() => callback(), 0);
     }
 }
@@ -807,10 +772,7 @@ function initAutoScan() {
   }
 
   autoScanInterval = setInterval(async () => {
-    // non disturbare mentre stai creando una targa manuale
     if (justCreatedManualPlateId) return;
-
-    // ✅ evita richieste sovrapposte (causano lock e "skip")
     if (__scanInFlight) return;
     __scanInFlight = true;
 
@@ -820,15 +782,11 @@ function initAutoScan() {
       if (!response.ok) return;
 
       const data = await response.json();
-
-      // se il backend risponde "skipped" = c'è già uno scan in corso → lascia fare e riprova al giro dopo
       if (data?.data?.skipped) return;
 
       const n = Number(data?.data?.new_plates || 0);
       if (data.success && n > 0) {
         showToast(`📸 ${n} nuove targhe rilevate`, 'success', 2000);
-
-        // ✅ refresh come prima (NON lo abbiamo tolto)
         loadPlates();
       }
     } catch (e) {
@@ -838,6 +796,7 @@ function initAutoScan() {
     }
   }, scanSeconds * 1000);
 }
+
 // ================== NUOVA TARGA INLINE (input + pulsante) ==================
 function initInlineNewPlate() {
     const input = document.getElementById('newPlateInline');
@@ -877,48 +836,10 @@ function initInlineNewPlate() {
                 return;
             }
 
-            const nowIso = result.date_detected || new Date().toISOString();
-
-            /*
-            // ========== PATCH: COMMENTO tutto il vecchio codice che causa duplicati ==========
-            const newPlate = {
-                id: result.plate_id,
-                plate_number: plateNumber,
-                plate_corrected: plateNumber,
-                date_detected: nowIso,
-                is_manual: 1,
-                is_passage: 0,
-                passage_id: null,
-                ticket_code: null
-            };
-
-            allPlates.unshift(newPlate);
-            if (typeof updatePlatesList === 'function') {
-                updatePlatesList(allPlates);
-            }
-            if (typeof updateStats === 'function') {
-                updateStats(allPlates.length);
-            }
-
-            selectedPlateId = newPlate.id;
-            selectedIsPassage = false;  // ✅ È UNA TARGA
-            selectPlateLock = true;
-            if (typeof renderDetails === 'function') {
-                renderDetails(newPlate);
-            }
-            if (typeof loadTicketData === 'function' && typeof updateFormWithTicketData === 'function') {
-                loadTicketData(newPlate.id).then(() => {
-                    updateFormWithTicketData(newPlate);
-                });
-            }
-            // ========== FINE VECCHIO CODICE ==========
-            */
-
             input.value = '';
 
-            // === PATCH: aggiorna solo dal backend, elimina ogni duplicato e seleziona la nuova targa ===
+            // aggiorna solo dal backend e seleziona la nuova targa
             loadPlates(() => selectPlate(result.plate_id));
-            // === FINE PATCH ===
 
             justCreatedManualPlateId = result.plate_id;
             setTimeout(() => {
@@ -945,496 +866,6 @@ function initInlineNewPlate() {
     });
 }
 
-// ================== POPUP SELEZIONE FASCIA ==================
-async function showFasciaPopup(fasceData) {
-    return new Promise((resolve) => {
-        // Rimuovi overlay esistente se presente
-        const existing = document.getElementById('fasciaPopupOverlay');
-        if (existing) existing.remove();
-
-        const overlay = document.createElement('div');
-        overlay.id = 'fasciaPopupOverlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
-
-        const modal = document.createElement('div');
-        modal.style.cssText = 'background:white;border-radius:12px;padding:24px 28px;min-width:320px;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.35);';
-
-        const btnRows = fasceData.map(f => `
-            <button type="button"
-                data-fascia="${f.codice}"
-                style="display:block;width:100%;padding:10px 14px;margin-bottom:8px;border:2px solid #e5e7eb;border-radius:8px;background:white;cursor:pointer;text-align:left;font-size:14px;transition:border-color 0.15s,background 0.15s;"
-                onmouseover="this.style.borderColor='#667eea';this.style.background='#f0f4ff';"
-                onmouseout="this.style.borderColor='#e5e7eb';this.style.background='white';">
-                <strong>${f.codice}</strong> — ${f.testo} &nbsp;|&nbsp; H: €${parseFloat(f.prezzo).toFixed(2)} &nbsp;|&nbsp; G: €${parseFloat(f.prezzo_day).toFixed(2)}
-            </button>
-        `).join('');
-
-        modal.innerHTML = `
-            <h3 style="margin:0 0 16px;font-size:17px;color:#1f2937;">🏷️ Seleziona Fascia</h3>
-            <div id="fasciaOptionsList">${btnRows}</div>
-            <button type="button" id="fasciaPopupCancel"
-                style="margin-top:8px;padding:8px 16px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;">
-                ✕ Annulla
-            </button>
-        `;
-
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
-
-        modal.querySelectorAll('[data-fascia]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                overlay.remove();
-                resolve(btn.getAttribute('data-fascia'));
-            });
-        });
-
-        document.getElementById('fasciaPopupCancel').addEventListener('click', () => {
-            overlay.remove();
-            resolve(null);
-        });
-
-        // Chiudi cliccando fuori
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                overlay.remove();
-                resolve(null);
-            }
-        });
-    });
-}
-
-// ================== EMETTI TICKET ==================
-async function emitTicket() {
-    console.log("emitTicket CALLED", { selectedPlateId, selectedIsPassage }, new Error().stack);
-    try {
-        // ✅ SE NULLA È SELEZIONATO, COMPORTATI COME PASSAGGIO (plate_id = 0)
-        let plateId = 0;
-        let isPassageMode = true;
-
-        // ✅ SE È UNA TARGA, CONTROLLA SE HA GIÀ UN TICKET
-        if (selectedPlateId && selectedPlateId !== null && selectedPlateId !== undefined && !selectedIsPassage) {
-            const plate = allPlates.find(p => p.id === selectedPlateId);
-            if (plate && plate.ticket_code && plate.ticket_code.trim() !== '') {
-                showToast('⚠️ Questa targa ha già un ticket: ' + plate.ticket_code, 'warning', 4000);
-                console.log('🚫 Targa già con ticket:', plate);
-                return;
-            }
-
-            plateId = selectedPlateId;
-            isPassageMode = false;
-        }
-
-        // ✅ Se è un passaggio selezionato o nulla, crea nuovo passaggio (plate_id = 0)
-        if (selectedIsPassage || !selectedPlateId) {
-            plateId = 0;
-            isPassageMode = true;
-        }
-
-        console.log('🎫 emitTicket: plateId =', plateId, 'isPassageMode =', isPassageMode);
-
-        // ===== SELEZIONE FASCIA =====
-        let fasciaToUse = null;
-
-        if (!isPassageMode && plateId > 0) {
-            // Per targhe: controlla se ha tessera prepagata attiva
-            const currentPlate = allPlates.find(p => p.id === plateId);
-            const plateNumber = currentPlate ? (currentPlate.plate_corrected || currentPlate.plate_number) : null;
-
-            if (plateNumber) {
-                try {
-                    const tessResp = await fetch(`${API_BASE}/modulo5_tessera_get.php?plate_number=${encodeURIComponent(plateNumber)}`);
-                    const tessData = await tessResp.json();
-                    if (tessData.success && tessData.data && tessData.data.attivo === 1 && tessData.data.fascias) {
-                        fasciaToUse = tessData.data.fascias;
-                        console.log('💳 Tessera prepagata attiva: fascia automatica =', fasciaToUse);
-                    }
-                } catch (e) {
-                    console.warn('⚠️ Errore verifica tessera prepagata:', e);
-                }
-            }
-        }
-
-        if (!fasciaToUse) {
-            // Mostra popup selezione fascia (per targhe senza prepagata e per passaggi)
-            let fasceData = [];
-            try {
-                const fasceResp = await fetch(`${API_BASE}/get_fasce.php`);
-                const fasceJson = await fasceResp.json();
-                if (fasceJson.success && Array.isArray(fasceJson.data)) {
-                    fasceData = fasceJson.data;
-                }
-            } catch (e) {
-                console.warn('⚠️ Errore caricamento fasce:', e);
-            }
-
-            fasciaToUse = await showFasciaPopup(fasceData);
-            if (!fasciaToUse) {
-                showToast('⚠️ Emissione ticket annullata', 'warning', 2000);
-                return;
-            }
-        }
-        // ===== FINE SELEZIONE FASCIA =====
-
-        showToast('⏳ Emissione ticket in corso...', 'info', 2000);
-
-     const response = await fetch(`${API_BASE}/emit_ticket.php`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    plate_id: plateId,
-    fascia: fasciaToUse,
-
-    // ✅ NEW: per targhe manuali, usa l'ingresso inserito in scheda (se presente)
-    // Se i campi non esistono o sono vuoti, il backend userà il fallback (date_detected).
-    entry_date: document.getElementById('entryDate')?.value || null,
-    entry_time: document.getElementById('entryTime')?.value || null
-  })
-});
-
-        const result = await response.json();
-
-        if (!result.success) {
-            showToast(result.message || '❌ Errore emissione ticket', 'error', 4000);
-            console.error('emitTicket error:', result);
-            return;
-        }
-
-        const data = result.data;
-        showToast(`✅ Ticket emesso: ${data.ticket_code}`, 'success', 4000);
-        console.log('emitTicket data:', data);
-
-        // ✅ SE È UNA TARGA, aggiorna UI IMMEDIATAMENTE (elimina "punto 3")
-        if (!isPassageMode && selectedPlateId > 0) {
-            const plateIdx = allPlates.findIndex(p => p.id === selectedPlateId);
-            if (plateIdx !== -1) {
-                allPlates[plateIdx].ticket_code = data.ticket_code;
-            }
-
-            const ticketCodeInput = document.getElementById('ticketCode');
-            if (ticketCodeInput) {
-                ticketCodeInput.value = data.ticket_code;
-                ticketCodeInput.disabled = true;
-                ticketCodeInput.style.background = '#f3f4f6';
-                ticketCodeInput.style.color = '#6b7280';
-            }
-
-            // ✅ NUOVO: ricarica la lista e RI-SELEZIONA la targa,
-            // così la terza colonna si aggiorna senza ricliccare manualmente.
-            // (Usiamo la callback già presente in loadPlates)
-            loadPlates(() => selectPlate(selectedPlateId));
-
-            // //// VECCHIO: NON ricaricava la lista -> la terza colonna non si aggiornava finché non ricliccavi la targa
-            // // ✅ NON ricarica la lista per targhe - evita duplicati
-
-            // Mantieni anche l'update_ticket (se ti serve come metadato)
-            setTimeout(async () => {
-                const ticketInfo = document.getElementById('ticketInfo')?.value || '';
-
-                const currentPlate = allPlates.find(p => p.id === selectedPlateId);
-                const plateNumber = currentPlate ? currentPlate.plate_number : (data.plate_number || '');
-
-                await fetch(`${API_BASE}/update_ticket.php`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        plate_id: selectedPlateId,
-                        plate_number: plateNumber,
-                        ticket_code: data.ticket_code,
-                        ticket_info: ticketInfo
-                    })
-                });
-            }, 300);
-
-        } else {
-            // ✅ SE È UN PASSAGGIO O NULLA SELEZIONATO, RICARICA LA LISTA
-            setTimeout(() => {
-                loadPlates();
-                selectedIsPassage = false;
-                selectedPlateId = null;
-            }, 500);
-        }
-
-    } catch (err) {
-        console.error('❌ emitTicket exception:', err);
-        showToast('❌ Errore emissione ticket', 'error', 4000);
-    }
-}
-
-// ================== RISTAMPA TICKET ==================
-// ================== RISTAMPA TICKET ==================
-async function reprintTicket() {
-    try {
-        console.log('🖨️ reprintTicket: selectedPlateId =', selectedPlateId, 'isPassage =', selectedIsPassage);
-
-        // ✅ CONTROLLA SE È STATA SELEZIONATA UNA TARGA/PASSAGGIO
-        if (selectedPlateId === null || selectedPlateId === undefined) {
-            showToast('⚠️ Seleziona una targa o passaggio prima di ristampare', 'warning', 3000);
-            return;
-        }
-
-        // ✅ CARICA I DATI DELL'ELEMENTO SELEZIONATO
-        let ticketCode = null;
-        
-        if (selectedIsPassage) {
-            // ✅ È UN PASSAGGIO: carica da get_passage.php
-            const url = `${API_BASE}/get_passage.php?id=${selectedPlateId}&t=${Date.now()}`;
-            const resp = await fetch(url, { cache: 'no-store' });
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const data = await resp.json();
-            
-            if (!data.success || !data.data) {
-                showToast('⚠️ Passaggio non trovato', 'error', 3000);
-                return;
-            }
-            
-            ticketCode = data.data.ticket_code;
-            console.log('🖨️ reprintTicket (PASSAGGIO):', { passageId: selectedPlateId, ticketCode });
-        } else {
-            // ✅ È UNA TARGA: cerca in allPlates
-            const selectedItem = allPlates.find(p => p.id === selectedPlateId);
-            if (!selectedItem) {
-                showToast('⚠️ Targa non trovata nella lista', 'error', 3000);
-                return;
-            }
-            
-            ticketCode = selectedItem.ticket_code;
-            console.log('🖨️ reprintTicket (TARGA):', { plateId: selectedPlateId, ticketCode });
-        }
-
-        // ✅ CONTROLLA SE HA UN TICKET
-        if (!ticketCode || ticketCode.trim() === '') {
-            showToast('⚠️ Nessun ticket associato a questo elemento. Emetti prima un ticket.', 'warning', 4000);
-            return;
-        }
-
-        // ✅ RISTAMPA IL TICKET
-        showToast('⏳ Ristampa ticket in corso...', 'info', 2000);
-
-        const response = await fetch(`${API_BASE}/reprint_ticket.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ticket_code: ticketCode,
-                plate_id: selectedIsPassage ? null : selectedPlateId,
-                passage_id: selectedIsPassage ? selectedPlateId : null
-            })
-        });
-
-        const result = await response.json();
-
-        console.log('🖨️ reprintTicket response:', result);
-
-        if (!result.success) {
-            showToast(result.message || '❌ Errore ristampa ticket', 'error', 4000);
-            console.error('reprintTicket error:', result);
-            return;
-        }
-
-        showToast(`✅ Ticket ristampato: ${ticketCode}`, 'success', 4000);
-        console.log('🖨️ reprintTicket success:', result.data);
-
-    } catch (err) {
-        console.error('❌ reprintTicket exception:', err);
-        showToast('❌ Errore ristampa ticket', 'error', 4000);
-    }
-}
-
-
-// ================== SELEZIONE TARGA ==================
-async function selectPlate(plateId, event) {
-    console.log("selectPlate CALLED", plateId, new Error().stack);
-    if (event && event.stopPropagation) {
-        event.stopPropagation();
-    }
-
-    try {
-        selectedPlateId = plateId;
-        selectedIsPassage = false;
-        selectPlateLock = true;
-
-        const url = `${API_BASE}/get_plate.php?id=${plateId}&t=${Date.now()}`;
-        console.log('📸 selectPlate: carico da', url);
-
-        const resp = await fetch(url, { cache: 'no-store' });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const data = await resp.json();
-
-        console.log('🔍 GET_PLATE risposta:', data);
-
-        if (!data.success) {
-            showToast(data.message || '❌ Errore caricamento targa', 'error', 3000);
-            return;
-        }
-
-        const plate = data.data;
-        console.log('✅ Targa caricata completo:', plate);
-
-        highlightPlateItemByPlateId(plateId);
-
-        // //// VECCHIO: preferiva renderPlateDetailsWithTimes e quindi tagliava abbonamento/tessera/veicoli autorizzati ecc.
-        // if (typeof renderPlateDetailsWithTimes === 'function') {
-        //     renderPlateDetailsWithTimes(plate);
-        // } else if (typeof renderDetails === 'function') {
-        //     renderDetails(plate);
-        // } else {
-        //     showToast('❌ renderDetails non disponibile', 'error');
-        // }
-
-        // ✅ PATCH CONTEXT (NON RIMUOVERE):
-        // Rende disponibile l'ID a details.js e a tutte le funzioni "calcola"
-        try {
-            // 1) Globali (compat con codice esistente)
-            window.PLATE_ID = plateId;
-            window.PASSAGE_ID = null;
-
-            window.obj = window.obj || {};
-            // per le targhe: obj.id = plateId (compat con vecchio details.js)
-            window.obj.id = plateId;
-            window.obj.plate_id = plateId;
-            window.obj.passage_id = null;
-
-            // 2) DOM dataset (robusto, se hai #details-root in index.html)
-            const root = document.getElementById('details-root');
-            if (root) {
-                root.dataset.plateId = String(plateId);
-                root.dataset.passageId = '';
-                // opzionale: compat se qualcuno legge dataset.id
-                root.dataset.id = String(plateId);
-            }
-
-            // 3) se esiste la sync helper, chiamala (non fa danni)
-            if (window.ANPR_syncDetailsIds) window.ANPR_syncDetailsIds();
-        } catch (e) {
-            console.error('sync details context failed (plate)', e);
-        }
-
-        // ✅ NUOVO: per le TARGHE usa SEMPRE renderDetails (scheda completa con tutte le sezioni)
-        const renderFn =
-            (typeof window.renderDetails === 'function') ? window.renderDetails :
-            (typeof window.renderPlateDetailsWithTimes === 'function') ? window.renderPlateDetailsWithTimes :
-            (typeof window.renderPlateDetails === 'function') ? window.renderPlateDetails :
-            null;
-        if (renderFn) {
-            renderFn(plate);
-        } else {
-            showToast('❌ Nessuna funzione render disponibile (window.renderDetails / window.renderPlateDetailsWithTimes)', 'error');
-            console.warn('render missing:', {
-                renderDetails: typeof window.renderDetails,
-                renderPlateDetailsWithTimes: typeof window.renderPlateDetailsWithTimes,
-                renderPlateDetails: typeof window.renderPlateDetails
-            });
-        }
-
-    } catch (err) {
-        console.error('❌ selectPlate error:', err);
-        showToast('❌ Errore caricamento targa', 'error', 3000);
-    }
-}
-
-// ================== SELEZIONE PASSAGGIO ==================
-async function selectPassage(passageId, event) {
-  if (event && event.stopPropagation) event.stopPropagation();
-
-  // salva stato precedente per ripristino se fallisce
-  const prevSelectedPlateId = selectedPlateId;
-  const prevSelectedIsPassage = selectedIsPassage;
-  const prevSelectPlateLock = selectPlateLock;
-
-  try {
-    // NON bloccare/settare selezione prima di sapere che esiste
-    const url = `${API_BASE}/get_passage.php?id=${encodeURIComponent(passageId)}&t=${Date.now()}`;
-    console.log('🚶 selectPassage: carico da', url);
-
-    const resp = await fetch(url, { cache: 'no-store' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-
-    const data = await resp.json();
-    console.log('🔍 GET_PASSAGE risposta:', data);
-
-    if (!data?.success || !data.data) {
-      showToast(data?.message || 'Passaggio non trovato', 'warning', 2500);
-      // ripristina selezione precedente (non lasciare UI in uno stato “mezzo selezionato”)
-      selectedPlateId = prevSelectedPlateId;
-      selectedIsPassage = prevSelectedIsPassage;
-      return;
-    }
-
-    // ✅ SOLO ORA aggiorna lo stato di selezione e blocco
-    selectedPlateId = passageId;
-    selectedIsPassage = true;
-    selectPlateLock = true;
-
-    const passage = data.data;
-    console.log('✅ Passaggio caricato completo:', passage);
-
-    highlightPlateItemByPassageId(passageId);
-
-    // ✅ PATCH CONTEXT (NON RIMUOVERE)
-    try {
-      window.PASSAGE_ID = passageId;
-      window.PLATE_ID = null;
-
-      window.obj = window.obj || {};
-      window.obj.id = passageId;
-      window.obj.passage_id = passageId;
-      window.obj.plate_id = null;
-
-      const root = document.getElementById('details-root');
-      if (root) {
-        root.dataset.passageId = String(passageId);
-        root.dataset.plateId = '';
-        root.dataset.id = String(passageId);
-      }
-
-      if (window.ANPR_syncDetailsIds) window.ANPR_syncDetailsIds();
-    } catch (e) {
-      console.error('sync details context failed (passage)', e);
-    }
-
-    if (typeof window.renderPassageDetails === 'function') {
-      window.renderPassageDetails(passage);
-    } else {
-      showToast('❌ renderPassageDetails non disponibile', 'error');
-    }
-
-  } catch (err) {
-    console.error('❌ selectPassage error:', err);
-    showToast('❌ Errore caricamento passaggio', 'error', 3000);
-
-    // ripristina anche qui
-    selectedPlateId = prevSelectedPlateId;
-    selectedIsPassage = prevSelectedIsPassage;
-
-  } finally {
-    // ✅ IMPORTANTISSIMO: non lasciare il lock attivo se qualcosa va storto
-    // Se vuoi mantenerlo attivo SOLO dopo successo, allora mettilo true solo nel ramo success,
-    // e qui lo rimetti al valore precedente se non è andata a buon fine.
-    if (selectedPlateId !== passageId) {
-      selectPlateLock = prevSelectPlateLock;
-    }
-  }
-}
-
-function highlightPlateItemByPlateId(plateId) {
-    document.querySelectorAll('.plate-item').forEach(el => {
-        el.classList.remove('active');
-        if (el.dataset.isPassage !== '1' && parseInt(el.dataset.plateId, 10) === plateId) {
-            el.classList.add('active');
-        }
-    });
-}
-
-function highlightPlateItemByPassageId(passageId) {
-    document.querySelectorAll('.plate-item').forEach(el => {
-        el.classList.remove('active');
-        if (el.dataset.isPassage === '1' && parseInt(el.dataset.passageId, 10) === passageId) {
-            el.classList.add('active');
-        }
-    });
-}
-
-
-
 // ================== AVVIO APP ==================
 document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ DOM Loaded');
@@ -1442,96 +873,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof setupGlobalListeners === 'function') {
         setupGlobalListeners();
     }
-    
- //   if (typeof initPlateSearch === 'function') {
-  //      initPlateSearch();
-  //  }
 
     loadPlates();
-
     initAutoRefresh();
-
     initAutoScan();
-
     initInlineNewPlate();
-
     initTicketSearch();
 
-    // ===== EMETTI TICKET =====
     const emitBtn = document.getElementById('emitTicketBtn');
-    if (emitBtn) {
-        emitBtn.addEventListener('click', () => {
-            emitTicket();
-        });
-    }
+    if (emitBtn) emitBtn.addEventListener('click', () => emitTicket());
 
-    // ===== RISTAMPA TICKET =====
     const reprintBtn = document.getElementById('reprintTicketBtn');
-    if (reprintBtn) {
-        reprintBtn.addEventListener('click', () => {
-            reprintTicket();
-        });
-    }
-	
+    if (reprintBtn) reprintBtn.addEventListener('click', () => reprintTicket());
 
-    // ===== RICERCA TICKET =====
     const searchBtn = document.getElementById('searchBtn');
-    if (searchBtn) {
-        searchBtn.addEventListener('click', () => {
-            handleTicketSearch();
-        });
-    }
+    if (searchBtn) searchBtn.addEventListener('click', () => handleTicketSearch());
 });
-function startHeaderClock() {
-  const el = document.getElementById('headerDateTime');
-  if (!el) return;
-
-  const fmt = new Intl.DateTimeFormat('it-IT', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-
-  const tick = () => {
-    let s = fmt.format(new Date());
-
-    // ✅ normalizza: toglie virgole e spazi doppi
-    s = s.replace(',', ' ').replace(/\s+/g, ' ').trim();
-
-    // ✅ rimuove qualunque "alle" / "alle ore" se qualche altro script lo aggiunge
-    // Esempi rimossi:
-    // "Martedì ... alle ore 16:52" -> "Martedì ... 16:52"
-    // "Martedì ... alle 16:52"     -> "Martedì ... 16:52"
-    s = s.replace(/\s+alle(\s+ore)?\s+/i, ' ');
-
-    // ✅ prima lettera maiuscola
-    s = s.charAt(0).toUpperCase() + s.slice(1);
-
-    el.textContent = s;
-  };
-
-  tick();
-  setInterval(tick, 30 * 1000);
-}
-
-// IMPORTANT: assicurati che sia registrata UNA SOLA VOLTA
-document.addEventListener('DOMContentLoaded', startHeaderClock);
-
-function setDbStatus(state) {
-  const wrap = document.getElementById('dbStatusWrap');
-  if (!wrap) return;
-
-  // non cambiare mai testo => niente vibrazioni
-  wrap.classList.remove('db-ok', 'db-wait', 'db-bad');
-
-  if (state === 'ok') {
-    wrap.classList.add('db-ok');
-  } else if (state === 'wait') {
-    wrap.classList.add('db-wait');
-  } else {
-    wrap.classList.add('db-bad');
-  }
-}
