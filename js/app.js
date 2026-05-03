@@ -1309,13 +1309,20 @@ async function selectPlate(plateId, event) {
         }
 
         // ✅ NUOVO: per le TARGHE usa SEMPRE renderDetails (scheda completa con tutte le sezioni)
-        if (typeof renderDetails === 'function') {
-            renderDetails(plate);
-        } else if (typeof renderPlateDetailsWithTimes === 'function') {
-            // fallback solo se renderDetails non esiste
-            renderPlateDetailsWithTimes(plate);
+        const renderFn =
+            (typeof window.renderDetails === 'function') ? window.renderDetails :
+            (typeof window.renderPlateDetailsWithTimes === 'function') ? window.renderPlateDetailsWithTimes :
+            (typeof window.renderPlateDetails === 'function') ? window.renderPlateDetails :
+            null;
+        if (renderFn) {
+            renderFn(plate);
         } else {
-            showToast('❌ Nessuna funzione render disponibile (renderDetails / renderPlateDetailsWithTimes)', 'error');
+            showToast('❌ Nessuna funzione render disponibile (window.renderDetails / window.renderPlateDetailsWithTimes)', 'error');
+            console.warn('render missing:', {
+                renderDetails: typeof window.renderDetails,
+                renderPlateDetailsWithTimes: typeof window.renderPlateDetailsWithTimes,
+                renderPlateDetails: typeof window.renderPlateDetails
+            });
         }
 
     } catch (err) {
@@ -1384,8 +1391,8 @@ async function selectPassage(passageId, event) {
       console.error('sync details context failed (passage)', e);
     }
 
-    if (typeof renderPassageDetails === 'function') {
-      renderPassageDetails(passage);
+    if (typeof window.renderPassageDetails === 'function') {
+      window.renderPassageDetails(passage);
     } else {
       showToast('❌ renderPassageDetails non disponibile', 'error');
     }
