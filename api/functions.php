@@ -39,25 +39,8 @@ function cleanDateTimeNoSec($dt) {
  */
 
 /**
- * (Se ti serve ancora EAN13, spostala in escpos.php perché dipende da
- * escpos_align/escpos_w/escpos_feed che stanno in escpos.php.)
+ * (escpos_barcode_ean13 rimossa: dipendeva da funzioni escpos_* non più disponibili.)
  */
-function escpos_barcode_ean13($fp, string $digits12): void {
-    $digits12 = preg_replace('/\D+/', '', $digits12);
-    $digits12 = substr($digits12, 0, 12);
-    if (strlen($digits12) !== 12) return;
-
-    escpos_align($fp, 1);
-    escpos_w($fp, "\x1D\x48\x02");       // HRI sotto
-    escpos_w($fp, "\x1D\x68" . chr(80)); // altezza
-    escpos_w($fp, "\x1D\x77" . chr(3));  // larghezza
-
-    // EAN13: m = 67 (0x43) con lunghezza (spesso è la forma più supportata)
-    escpos_w($fp, "\x1D\x6B" . chr(67) . chr(12) . $digits12);
-
-    escpos_feed($fp, 2);
-    escpos_align($fp, 0);
-}
 
 /**
  * =========================
@@ -299,9 +282,6 @@ INGRESSO: {$ingresso}
 USCITA:   {$uscita}
 DURATA:   {$durata} - IMPORTO: € {$importo}
 {$tesseraLineFinal}{$sep2}
-Presentare questo biglietto al ritiro del veicolo.
-Present this ticket when collecting the vehicle.
-
 BARCODE: {$barcodeValue}
 {$sep1}
 ";

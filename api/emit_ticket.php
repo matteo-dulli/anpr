@@ -133,7 +133,7 @@ $stmt->execute([
     $entryDate = (new DateTime($entryDateTime))->format('d/m/Y');
     $entryTime = (new DateTime($entryDateTime))->format('H:i');
 
-    $footer = "Presentare questo biglietto al ritiro del veicolo.\nPresent this ticket when collecting the vehicle.";
+    $footer = "Presentare questo biglietto al ritiro\ndel veicolo.\nPresent this ticket when collecting\nthe vehicle.";
 
     // linee anagrafiche garage
     $garageLines = [
@@ -163,10 +163,8 @@ $stmt->execute([
     $lines[] = 'INGRESSO: ' . $entryDate . '  ' . $entryTime;
     $lines[] = str_repeat('-', 32);
     $lines[] = $footer;
-    $lines[] = '';
     $lines[] = 'BARCODE:'; // solo codice a barre grafico, nessun testo visibile
     $lines[] = str_repeat('=', 32);
-    $lines[] = ''; // riga vuota finale
 
     $ticketText = implode(PHP_EOL, $lines);
 
@@ -206,11 +204,11 @@ $stmt->execute([
     $smallLines[] = str_repeat('=', 32);
     $smallLines[] = $garage['ragione_sociale'];
     $smallLines[] = str_repeat('-', 32);
+    $smallLines[] = 'Ticket: ' . $barcodeSecondary;
     $smallLines[] = $plateLine;
     $smallLines[] = 'INGRESSO: ' . $entryDate . '  ' . $entryTime;
     $smallLines[] = 'BARCODE:'; // barcode secondario (immagine senza testo)
     $smallLines[] = str_repeat('=', 32);
-    $smallLines[] = '';
 
     $smallTicketText = implode(PHP_EOL, $smallLines);
 

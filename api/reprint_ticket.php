@@ -149,7 +149,7 @@ require_once __DIR__ . '/escpos.php';
         'Email: ' . ($garage['email'] ?? ''),
     ];
 
-    $footer = "Presentare questo biglietto al ritiro del veicolo.\nPresent this ticket when collecting the vehicle.";
+    $footer = "Presentare questo biglietto al ritiro\ndel veicolo.\nPresent this ticket when collecting\nthe vehicle.";
 
     // ===== PRIMO TICKET (copia originale, barcode secondario) =====
     $lines = [];
@@ -163,10 +163,8 @@ require_once __DIR__ . '/escpos.php';
     $lines[] = 'INGRESSO: ' . $entryDateFmt . '  ' . $entryTimeFmt;
     $lines[] = str_repeat('-', 32);
     $lines[] = $footer;
-    $lines[] = '';
     $lines[] = 'BARCODE:'; // solo immagine barcode, nessun testo
     $lines[] = str_repeat('=', 32);
-    $lines[] = '';
     $firstTicketText = implode(PHP_EOL, $lines);
 
     // ===== SECONDO TICKET (piccolo, barcode secondario) =====
@@ -174,11 +172,11 @@ require_once __DIR__ . '/escpos.php';
     $smallLines[] = str_repeat('=', 32);
     $smallLines[] = $garage['ragione_sociale'];
     $smallLines[] = str_repeat('-', 32);
+    $smallLines[] = 'Ticket: ' . $barcodeSecondary;
     $smallLines[] = $plateLine;
     $smallLines[] = 'INGRESSO: ' . $entryDateFmt . '  ' . $entryTimeFmt;
     $smallLines[] = 'BARCODE:'; // barcode secondario, solo immagine
     $smallLines[] = str_repeat('=', 32);
-    $smallLines[] = '';
     $secondTicketText = implode(PHP_EOL, $smallLines);
 
     // Stampa primo ticket con barcode secondario

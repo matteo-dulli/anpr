@@ -1,32 +1,45 @@
 <?php
 
+/**
+ * ESC/POS printing module — supports TCP and Windows RAW.
+ *
+ * TCP path   : set IP (and optionally PORT) in costanti.txt
+ * Windows path: set PRINTER_NAME or PRINTER_SHARE in costanti.txt
+ *
+ * Barcode: native ESC/POS CODE128 (GS k 73) rendered by printer hardware.
+ */
 function escpos_get_printer_config(): array {
   $c = $GLOBALS['COSTANTI'] ?? [];
+
+  $ip      = trim((string)($c['IP'] ?? ''));
+  $portRaw = $c['PORT'] ?? $c['Port'] ?? 9100;
+  $port    = is_numeric($portRaw) ? (int)$portRaw : 9100;
+
   $printerName  = trim((string)($c['PRINTER_NAME'] ?? ''));
   $printerShare = trim((string)($c['PRINTER_SHARE'] ?? ($c['USB_SHARE'] ?? '')));
-  $barcode      = strtoupper(trim((string)($c['BARCODE'] ?? 'CODE128')));
-  $barcodeFont  = trim((string)($c['BARCODE_FONT'] ?? 'Libre Barcode 128')); // legacy
 
-  // Se qualcuno mette IP:PORT in PRINTER_SHARE, non è una share Windows
-  if (preg_match('/^\d{1,3}(\.\d{1,3}){3}:\d+$/', $printerShare)) {
-    $printerShare = '';
+  // TCP when IP is a valid IP address
+  if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) {
+    return ['method' => 'tcp', 'ip' => $ip, 'port' => $port];
   }
 
-  return [
-    'printer_name'  => $printerName,
-    'printer_share' => $printerShare,
-    'barcode'       => $barcode,
-    'barcode_font'  => $barcodeFont
-  ];
+  // Windows RAW when a printer name/share is configured
+  $printer = $printerName !== '' ? $printerName : $printerShare;
+  if ($printer !== '') {
+    return ['method' => 'windows', 'printer' => $printer];
+  }
+
+  return ['method' => 'none'];
 }
 
-function escpos_lock() {
+function escpos_lock(): array {
   $lockFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ticket_print.lock';
   $fp = @fopen($lockFile, 'c');
   if (!$fp) return [null, 'Impossibile creare lock stampa'];
   if (!@flock($fp, LOCK_EX)) { @fclose($fp); return [null, 'Impossibile acquisire lock stampa']; }
   return [$fp, ''];
 }
+
 function escpos_unlock($lockFp): void {
   if ($lockFp) { @flock($lockFp, LOCK_UN); @fclose($lockFp); }
 }
@@ -36,7 +49,7 @@ function escpos_debug_log(string $msg): void {
 }
 
 /**
- * Estrae "BARCODE: xxx" dal testo ricevuta. Ritorna '' se non presente.
+ * Estrae "BARCODE: xxx" dal testo. Ritorna '' se non presente.
  */
 function escpos_extract_barcode_from_txt(string $txt): string {
   if (preg_match('/^\s*BARCODE\s*:\s*(.+?)\s*$/mi', $txt, $m)) {
@@ -46,293 +59,259 @@ function escpos_extract_barcode_from_txt(string $txt): string {
 }
 
 /**
- * Genera barcode Code128 vero come PNG usando la libreria Picqer.
- * IMPORTANT: usa l'autoloader del progetto in anpr/composer/autoload.php
+ * Costruisce il buffer ESC/POS raw (testo + barcode nativo CODE128).
+ *
+ * Layout:
+ * - Prima riga non-separatore → header centrato, grassetto, doppia altezza
+ * - Righe "===..." / "---..." → espanse a 42 caratteri (carta 80 mm)
+ * - Riga "BARCODE:" → barcode CODE128 nativo tramite comando GS k 73 {B <data>
  */
-function win_generate_barcode_png_code128(string $barcodeValue, string $outPng): array {
-  $barcodeValue = trim($barcodeValue);
-  if ($barcodeValue === '') return ['success' => false, 'message' => 'Barcode vuoto'];
-
-  $src = __DIR__ . '/../composer/php-barcode-generator-main/src/';
-  escpos_debug_log('ENTER win_generate_barcode_png_code128 (ordered include version)');
-  escpos_debug_log('barcode src=' . $src);
-
-  try {
-    $must = [
-      // core
-      $src . 'BarcodeBar.php',
-      $src . 'Barcode.php',
-
-      // base generator + png generator
-      $src . 'BarcodeGenerator.php',
-      $src . 'BarcodeGeneratorPNG.php',
-
-      // exceptions (PngRenderer lancia BarcodeException)
-      $src . 'Exceptions/BarcodeException.php',
-      $src . 'Exceptions/UnknownTypeException.php',
-
-      // types
-      $src . 'Types/TypeInterface.php',
-      $src . 'Types/TypeCode128.php',
-      $src . 'Types/TypeCode128A.php',
-      $src . 'Types/TypeCode128B.php',
-      $src . 'Types/TypeCode128C.php',
-
-      // renderers: PRIMA interface, POI implementazioni
-      $src . 'Renderers/RendererInterface.php',
-      $src . 'Renderers/PngRenderer.php',
-    ];
-
-    foreach ($must as $f) {
-      if (!file_exists($f)) {
-        return ['success' => false, 'message' => 'File libreria mancante: ' . $f];
-      }
-      require_once $f;
-    }
-
-    // ora deve esistere
-    if (!class_exists('\Picqer\Barcode\BarcodeGeneratorPNG')) {
-      return ['success' => false, 'message' => 'Classe Picqer\\Barcode\\BarcodeGeneratorPNG non trovata dopo include ordinato'];
-    }
-
-    $gen = new \Picqer\Barcode\BarcodeGeneratorPNG();
-
-    // Nota: richiede GD o Imagick (tu hai GD perché PngRenderer lo usa se imagecreate esiste)
-    $pngData = $gen->getBarcode($barcodeValue, $gen::TYPE_CODE_128, 4, 90);
-
-    if (!is_string($pngData) || $pngData === '') {
-      return ['success' => false, 'message' => 'Generazione barcode fallita (png vuoto)'];
-    }
-
-    if (@file_put_contents($outPng, $pngData) === false) {
-      return ['success' => false, 'message' => 'Impossibile scrivere barcode png: ' . $outPng];
-    }
-
-    return ['success' => true, 'message' => 'Barcode PNG creato'];
-  } catch (Throwable $e) {
-    escpos_debug_log('barcode EXCEPTION: ' . $e->getMessage());
-    return ['success' => false, 'message' => 'Errore generazione barcode: ' . $e->getMessage()];
-  }
-}
-
-function win_print_png_to_printer(string $printer, string $pngPath): array {
-  if ($printer === '') return ['success' => false, 'message' => 'Stampante non configurata (PRINTER_NAME/PRINTER_SHARE vuoti)'];
-  if (!file_exists($pngPath)) return ['success' => false, 'message' => 'PNG non trovato: ' . $pngPath];
-
-  $ps = <<<'PS'
-param([string]$Printer,[string]$Png)
-Add-Type -AssemblyName System.Drawing
-$img=[System.Drawing.Image]::FromFile($Png)
-
-$doc=New-Object System.Drawing.Printing.PrintDocument
-$doc.PrinterSettings.PrinterName=$Printer
-if(-not $doc.PrinterSettings.IsValid){ throw "Stampante non valida: $Printer" }
-
-$doc.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0,0,0,0)
-
-$doc.add_PrintPage({
-  param($sender,$e)
-
-  # IMPORTANT: no smoothing/anti-alias per barcode
-  $e.Graphics.SmoothingMode=[System.Drawing.Drawing2D.SmoothingMode]::None
-  $e.Graphics.InterpolationMode=[System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
-  $e.Graphics.PixelOffsetMode=[System.Drawing.Drawing2D.PixelOffsetMode]::None
-
-  $e.Graphics.DrawImage($img,0,0,$img.Width,$img.Height)
-  $e.HasMorePages=$false
-})
-
-$doc.Print()
-$img.Dispose()
-PS;
-
-  $tmpPs = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'print_img_' . uniqid('', true) . '.ps1';
-  file_put_contents($tmpPs, $ps);
-
-  $cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -File ' . escapeshellarg($tmpPs) .
-         ' -Printer ' . escapeshellarg($printer) .
-         ' -Png ' . escapeshellarg($pngPath);
-
-  exec($cmd . ' 2>&1', $out, $code);
-  @unlink($tmpPs);
-
-  if ($code !== 0) return ['success' => false, 'message' => "Stampa PNG fallita ($code): " . implode("\n", $out)];
-  return ['success' => true, 'message' => "Stampato su $printer"];
-}
-
-/**
- * Renderizza ticket PNG e inserisce il barcode come immagine, se disponibile.
- */
-function win_render_ticket_png(string $txt, string $fallbackBarcodeValue, string $outPng, string $barcodeFont, string $barcodePngPath): array {
+function escpos_build_raw(string $txt, string $barcodeValue): string {
   $txt = str_replace("\r\n", "\n", $txt);
   $txt = str_replace("\r", "\n", $txt);
 
-  $ps = <<<'PS'
-param([string]$TxtPath,[string]$Barcode,[string]$OutPng,[string]$BarcodeFont,[string]$BarcodePng)
-Add-Type -AssemblyName System.Drawing
+  // Determina il valore del barcode: preferisce quello nel testo
+  $txtBarcode   = escpos_extract_barcode_from_txt($txt);
+  $finalBarcode = $txtBarcode !== '' ? $txtBarcode : trim((string)$barcodeValue);
 
-$txt = Get-Content -Raw -Encoding UTF8 $TxtPath
-$txt = $txt -replace "`r`n","`n"
-$txt = $txt -replace "`r","`n"
-$lines = $txt -split "`n"
+  $out = '';
 
-$mono = New-Object System.Drawing.Font("Consolas", 10, [System.Drawing.FontStyle]::Regular)
-$monoBold = New-Object System.Drawing.Font("Consolas", 12, [System.Drawing.FontStyle]::Bold)
+  // ESC @ — inizializza stampante
+  $out .= "\x1B\x40";
+  // Code page PC850 (Latin-1 / Multilingual) — per caratteri accentati italiani
+  $out .= "\x1B\x74\x02";
 
-# barcode image
-$bcImg = $null
-if (Test-Path $BarcodePng) {
-  try { $bcImg = [System.Drawing.Image]::FromFile($BarcodePng) } catch { $bcImg = $null }
-}
+  $lines         = preg_split("/\n/", $txt);
+  $printedHeader = false;
 
-$w = 550
-$lineH = 18
-$topPad = 10
-$y = $topPad
-$h = $topPad + ($lines.Count * $lineH) + 260
+  foreach ($lines as $line) {
+    $trim = trim($line);
 
-$bmp = New-Object System.Drawing.Bitmap($w, $h)
-$g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.Clear([System.Drawing.Color]::White)
-
-$g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::None
-$g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::SingleBitPerPixelGridFit
-$brush = [System.Drawing.Brushes]::Black
-$printedHeader = $false
-
-foreach($line in $lines){
-  $t = $line.Trim()
-
-  if($t -like "BARCODE:*"){
-    $y += 8
-    $x = 20   # quiet zone
-
-    # estrai valore originale dal TXT ("BARCODE: xxx")
-    $bcOrigValue = ""
-    try { $bcOrigValue = $t.Substring(8).Trim() } catch { $bcOrigValue = "" }
-
-    # se vuoto nel TXT, usa il barcode passato come parametro (ma senza stamparne il testo)
-    $bcValue = if($bcOrigValue -eq "") { $Barcode } else { $bcOrigValue }
-
-    # mostra testo solo se il TXT aveva un valore esplicito
-    $showBcText = ($bcOrigValue -ne "")
-
-    if($bcImg -ne $null){
-      $g.InterpolationMode=[System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
-      $g.PixelOffsetMode=[System.Drawing.Drawing2D.PixelOffsetMode]::None
-      $g.DrawImage($bcImg, $x, $y, $bcImg.Width, $bcImg.Height) | Out-Null
-      $y += ($bcImg.Height + 6)
-
-      if($showBcText){ $g.DrawString($bcValue, $mono, $brush, $x, $y) | Out-Null; $y += 18 }
-    } else {
-      if($showBcText){ $g.DrawString($bcValue, $monoBold, $brush, $x, $y) | Out-Null; $y += 22 }
+    // ── Riga BARCODE ──────────────────────────────────────────────
+    if (stripos($trim, 'BARCODE:') === 0) {
+      if ($finalBarcode !== '') {
+        // Feed prima del barcode (quiet zone verticale)
+        $out .= "\x0A";
+        // Allineamento centrato
+        $out .= "\x1B\x61\x01";
+        // HRI sotto il barcode (GS H 2)
+        $out .= "\x1D\x48\x02";
+        // Font HRI: A (GS f 0)
+        $out .= "\x1D\x66\x00";
+        // Altezza barcode: 100 punti (GS h 100) — leggibile da scanner
+        $out .= "\x1D\x68" . chr(100);
+        // Larghezza modulo: 3 punti (GS w 3)
+        $out .= "\x1D\x77" . chr(3);
+        // CODE128 — GS k 73 (0x49), lunghezza, prefisso "{B" + dati
+        // "{B" seleziona il Subset B: caratteri ASCII 32-127 (lettere, cifre, punteggiatura)
+        $payload = '{B' . $finalBarcode;
+        $out .= "\x1D\x6B\x49" . chr(strlen($payload)) . $payload;
+        // Feed dopo il barcode
+        $out .= "\x0A\x0A";
+        // Torna all'allineamento sinistro
+        $out .= "\x1B\x61\x00";
+      }
+      continue;
     }
 
-    $y += 10
-    continue
+    // ── Header (prima riga non-separatore) ────────────────────────
+    if (!$printedHeader && $trim !== '' && !preg_match('/^[=\-]+$/', $trim)) {
+      $printedHeader = true;
+      $out .= "\x1B\x61\x01"; // centrato
+      $out .= "\x1B\x45\x01"; // grassetto on
+      $out .= "\x1D\x21\x11"; // doppia larghezza + altezza
+      $out .= $trim . "\x0A";
+      $out .= "\x1D\x21\x00"; // dimensione normale
+      $out .= "\x1B\x45\x00"; // grassetto off
+      $out .= "\x1B\x61\x00"; // allineamento sinistro
+      continue;
+    }
+
+    // ── Separatori ────────────────────────────────────────────────
+    if (preg_match('/^=+$/', $trim)) {
+      $out .= str_repeat('=', 42) . "\x0A";
+      continue;
+    }
+    if (preg_match('/^-+$/', $trim)) {
+      $out .= str_repeat('-', 42) . "\x0A";
+      continue;
+    }
+
+    $out .= $line . "\x0A";
   }
 
-  if((-not $printedHeader) -and $t -ne "" -and ($t -notmatch "^(=+|-+)$")){
-    $printedHeader = $true
-    $g.DrawString($t, $monoBold, $brush, 0, $y) | Out-Null
-    $y += 24
-    continue
-  }
+  // Feed finale + taglio parziale
+  $out .= "\x0A\x0A";
+  $out .= "\x1D\x56\x01";
 
-  if($t -match "^=+$"){ $g.DrawString(("="*42), $mono, $brush, 0, $y) | Out-Null; $y += $lineH; continue }
-  if($t -match "^-+$"){ $g.DrawString(("-"*42), $mono, $brush, 0, $y) | Out-Null; $y += $lineH; continue }
-
-  $g.DrawString($line, $mono, $brush, 0, $y) | Out-Null
-  $y += $lineH
+  return $out;
 }
 
-$y += 40
+/**
+ * Stampa via socket TCP diretto (ESC/POS raw, porta 9100 tipica).
+ */
+function escpos_print_tcp(string $ip, int $port, string $rawBytes): array {
+  $fp = @fsockopen($ip, $port, $errno, $errstr, 3.0);
+  if (!$fp) {
+    return ['success' => false, 'message' => "Connessione TCP fallita {$ip}:{$port} ({$errno}) {$errstr}"];
+  }
+  stream_set_timeout($fp, 3);
 
-$finalH = [Math]::Max($y, 200)
-$final = New-Object System.Drawing.Bitmap($w, $finalH)
-$g2 = [System.Drawing.Graphics]::FromImage($final)
-$g2.Clear([System.Drawing.Color]::White)
-$g2.DrawImage($bmp,0,0) | Out-Null
+  $total   = strlen($rawBytes);
+  $written = 0;
+  while ($written < $total) {
+    $w = @fwrite($fp, substr($rawBytes, $written));
+    if ($w === false || $w === 0) break;
+    $written += $w;
+  }
+  @fflush($fp);
+  @fclose($fp);
 
-$final.Save($OutPng, [System.Drawing.Imaging.ImageFormat]::Png)
+  if ($written < $total) {
+    return ['success' => false, 'message' => "TCP: trasmissione incompleta ({$written}/{$total} byte)"];
+  }
+  return ['success' => true, 'message' => "Stampato su {$ip}:{$port}"];
+}
 
-if($bcImg -ne $null){ $bcImg.Dispose() }
-$g2.Dispose(); $final.Dispose(); $g.Dispose(); $bmp.Dispose()
+/**
+ * Stampa via Windows RAW printer (PowerShell + WritePrinter API).
+ * Invia i byte ESC/POS direttamente, bypassando il renderer GDI.
+ * Questo è l'unico modo affidabile per spedire comandi nativi CODE128
+ * a una stampante termica collegata via USB su Windows.
+ */
+function escpos_print_windows(string $printerName, string $rawBytes): array {
+  $tmpData = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'escpos_' . uniqid('', true) . '.bin';
+  $tmpPs   = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'escpos_ps_' . uniqid('', true) . '.ps1';
+
+  if (@file_put_contents($tmpData, $rawBytes) === false) {
+    return ['success' => false, 'message' => 'Impossibile scrivere dati ESC/POS su file temporaneo'];
+  }
+
+  // PowerShell: legge i byte dal file e li manda alla stampante via WritePrinter ("RAW")
+  $ps = <<<'PS'
+param([string]$Printer, [string]$DataFile)
+
+$bytes = [System.IO.File]::ReadAllBytes($DataFile)
+
+$src = @"
+using System;
+using System.Runtime.InteropServices;
+
+public class EscposRawPrint {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public class DOCINFOA {
+        [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
+        [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
+        [MarshalAs(UnmanagedType.LPStr)] public string pDatatype;
+    }
+
+    [DllImport("winspool.drv", CharSet = CharSet.Ansi, SetLastError = true)]
+    public static extern bool OpenPrinter(string pPrinterName, out IntPtr phPrinter, IntPtr pDefault);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool ClosePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.drv", CharSet = CharSet.Ansi, SetLastError = true)]
+    public static extern int StartDocPrinter(IntPtr hPrinter, int Level, DOCINFOA pDocInfo);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool StartPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBuf, int cbBuf, out int pcWritten);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool EndPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool EndDocPrinter(IntPtr hPrinter);
+
+    public static bool Send(string printer, byte[] data) {
+        IntPtr hPrinter;
+        if (!OpenPrinter(printer, out hPrinter, IntPtr.Zero)) return false;
+        try {
+            var di = new DOCINFOA { pDocName = "ESC/POS", pOutputFile = null, pDatatype = "RAW" };
+            if (StartDocPrinter(hPrinter, 1, di) == 0) return false;
+            try {
+                StartPagePrinter(hPrinter);
+                IntPtr ptr = Marshal.AllocHGlobal(data.Length);
+                try {
+                    Marshal.Copy(data, 0, ptr, data.Length);
+                    int written;
+                    return WritePrinter(hPrinter, ptr, data.Length, out written);
+                } finally {
+                    Marshal.FreeHGlobal(ptr);
+                }
+            } finally {
+                EndPagePrinter(hPrinter);
+                EndDocPrinter(hPrinter);
+            }
+        } finally {
+            ClosePrinter(hPrinter);
+        }
+    }
+}
+"@
+
+if (-not ([System.Management.Automation.PSTypeName]'EscposRawPrint').Type) {
+    Add-Type -TypeDefinition $src -Language CSharp
+}
+
+$ok = [EscposRawPrint]::Send($Printer, $bytes)
+if (-not $ok) {
+    $err = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error()
+    throw "WritePrinter fallito (err=$err) su stampante: $Printer"
+}
 PS;
 
-  $tmpTxt = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ticket_' . uniqid('', true) . '.txt';
-  $tmpPs  = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'render_ticket_' . uniqid('', true) . '.ps1';
-  file_put_contents($tmpTxt, $txt);
-  file_put_contents($tmpPs, $ps);
+  if (@file_put_contents($tmpPs, $ps) === false) {
+    @unlink($tmpData);
+    return ['success' => false, 'message' => 'Impossibile scrivere script PowerShell temporaneo'];
+  }
 
   $cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -File ' . escapeshellarg($tmpPs) .
-         ' -TxtPath ' . escapeshellarg($tmpTxt) .
-         ' -Barcode ' . escapeshellarg($fallbackBarcodeValue) .
-         ' -OutPng ' . escapeshellarg($outPng) .
-         ' -BarcodeFont ' . escapeshellarg($barcodeFont) .
-         ' -BarcodePng ' . escapeshellarg($barcodePngPath);
+         ' -Printer '  . escapeshellarg($printerName) .
+         ' -DataFile ' . escapeshellarg($tmpData);
 
   exec($cmd . ' 2>&1', $out, $code);
 
-  @unlink($tmpTxt);
+  @unlink($tmpData);
   @unlink($tmpPs);
 
-  if ($code !== 0) return ['success' => false, 'message' => "Render PNG fallito ($code): " . implode("\n", $out)];
-  return ['success' => true, 'message' => 'PNG creato'];
+  if ($code !== 0) {
+    return ['success' => false, 'message' => "Stampa Windows fallita (exit={$code}): " . implode('; ', $out)];
+  }
+  return ['success' => true, 'message' => "Stampato su {$printerName}"];
 }
 
+/**
+ * Funzione principale: sceglie TCP (se IP configurato) o Windows RAW.
+ */
 function escpos_print_txt_with_barcode(string $txt, string $barcodeValue): array {
   $cfg = escpos_get_printer_config();
-  $printer = $cfg['printer_name'] !== '' ? $cfg['printer_name'] : $cfg['printer_share'];
-  if ($printer === '') return ['success' => false, 'message' => 'Config mancante: PRINTER_NAME o PRINTER_SHARE'];
+  escpos_debug_log('method=' . $cfg['method'] . ' barcode=' . var_export($barcodeValue, true));
+
+  if ($cfg['method'] === 'none') {
+    return ['success' => false, 'message' => 'Stampante non configurata (impostare IP oppure PRINTER_NAME/PRINTER_SHARE in costanti.txt)'];
+  }
 
   [$lockFp, $lockErr] = escpos_lock();
   if (!$lockFp) return ['success' => false, 'message' => $lockErr];
 
-  $png = '';
-  $barcodePng = '';
-
   try {
-    // Se nel TXT c'è "BARCODE: xxx", usa quello (più affidabile)
-    $txtBarcode = escpos_extract_barcode_from_txt($txt);
-    $finalBarcodeValue = $txtBarcode !== '' ? $txtBarcode : trim((string)$barcodeValue);
+    $rawBytes = escpos_build_raw($txt, $barcodeValue);
 
-    $png = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ticket_' . uniqid('', true) . '.png';
-    $barcodePng = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'barcode_' . uniqid('', true) . '.png';
-
-    escpos_debug_log('printer=' . $printer);
-    escpos_debug_log('finalBarcodeValue=' . var_export($finalBarcodeValue, true));
-
-    if ($finalBarcodeValue !== '') {
-      $b = win_generate_barcode_png_code128($finalBarcodeValue, $barcodePng);
-      escpos_debug_log('barcode gen: ' . json_encode($b, JSON_UNESCAPED_UNICODE));
-      escpos_debug_log('barcode file exists=' . (file_exists($barcodePng) ? '1' : '0') . ' size=' . (file_exists($barcodePng) ? filesize($barcodePng) : 0));
-      if (!$b['success']) {
-        $barcodePng = ''; // fallback solo testo
-      }
+    if ($cfg['method'] === 'tcp') {
+      $result = escpos_print_tcp($cfg['ip'], $cfg['port'], $rawBytes);
     } else {
-      $barcodePng = '';
-      escpos_debug_log('barcode skipped (empty)');
+      $result = escpos_print_windows($cfg['printer'], $rawBytes);
     }
 
-    $r = win_render_ticket_png($txt, $finalBarcodeValue, $png, $cfg['barcode_font'], $barcodePng);
-    escpos_debug_log('render: ' . json_encode($r, JSON_UNESCAPED_UNICODE));
-    if (!$r['success']) { escpos_unlock($lockFp); return $r; }
-
-    $p = win_print_png_to_printer($printer, $png);
-    escpos_debug_log('print: ' . json_encode($p, JSON_UNESCAPED_UNICODE));
-
-    if ($png !== '' && file_exists($png)) @unlink($png);
-    if ($barcodePng !== '' && file_exists($barcodePng)) @unlink($barcodePng);
-
+    escpos_debug_log('result=' . json_encode($result));
     escpos_unlock($lockFp);
-    return $p;
+    return $result;
   } catch (Throwable $e) {
     escpos_debug_log('EXCEPTION: ' . $e->getMessage());
-
-    if ($png !== '' && file_exists($png)) @unlink($png);
-    if ($barcodePng !== '' && file_exists($barcodePng)) @unlink($barcodePng);
-
     escpos_unlock($lockFp);
     return ['success' => false, 'message' => 'Errore stampa: ' . $e->getMessage()];
   }
