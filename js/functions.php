@@ -448,9 +448,6 @@ USCITA:   {$uscita}
 DURATA:   {$durata}
 IMPORTO:  € {$importo}
 {$tesseraLineFinal}--------------------------------
-Presentare questo biglietto al ritiro del veicolo. 
-Present this ticket when collecting the vehicle.
-
 BARCODE: {$barcodeValue}
 ================================
 ";
