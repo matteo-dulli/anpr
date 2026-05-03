@@ -91,7 +91,9 @@ require_once __DIR__ . '/escpos.php';
     error_log('[reprint_ticket] PRINT_DIR check passed: ' . PRINT_DIR);
 
     $stmt = $db->prepare("
-        SELECT id, ticket_code, entry_datetime, exit_datetime 
+        SELECT id, ticket_code, entry_datetime, exit_datetime,
+               plate_id, plate_number, fascia,
+               COALESCE(barcode_secondary, SUBSTRING_INDEX(ticket_code, '-', -1)) AS barcode_secondary
         FROM tickets_printed 
         WHERE ticket_code = ? 
         LIMIT 1
@@ -110,126 +112,128 @@ require_once __DIR__ . '/escpos.php';
         throw new Exception('Ticket non trovato nel database con codice: ' . $ticketCode);
     }
 
-    $originalFileName = 'TICKET_' . $ticketCode . '.txt';
-    $originalFilePath = PRINT_DIR . '/' . $originalFileName;
+    $barcodeSecondary = $ticket['barcode_secondary'];
+    $fasciaTicket = $ticket['fascia'] ?? '';
+    $plateNumberTicket = $ticket['plate_number'] ?? '';
 
-    error_log('[reprint_ticket] Original file path: ' . $originalFilePath);
-    error_log('[reprint_ticket] Original file exists: ' . (file_exists($originalFilePath) ? 'YES' : 'NO'));
-
-    if (!file_exists($originalFilePath)) {
-        throw new Exception('File ticket originale non trovato: ' . $originalFilePath);
+    // Carica dati garage
+    $stmtG = $db->query("SELECT * FROM garage_info ORDER BY id ASC LIMIT 1");
+    $garage = $stmtG ? $stmtG->fetch(PDO::FETCH_ASSOC) : null;
+    if (!$garage) {
+        throw new Exception('Dati garage (garage_info) non configurati');
     }
 
-    $fileContent = @file_get_contents($originalFilePath);
-    if ($fileContent === false) {
-        $lastError = error_get_last();
-        throw new Exception('Errore lettura file: ' . $originalFilePath . ' (' . ($lastError ? $lastError['message'] : 'unknown') . ')');
+    // Formatta data/ora ingresso
+    $entryDT = $ticket['entry_datetime'] ?: date('Y-m-d H:i:s');
+    try {
+        $dtEntry = new DateTime($entryDT, new DateTimeZone('Europe/Rome'));
+        $entryDateFmt = $dtEntry->format('d/m/Y');
+        $entryTimeFmt = $dtEntry->format('H:i');
+    } catch (Exception $eDt) {
+        $entryDateFmt = date('d/m/Y');
+        $entryTimeFmt = date('H:i');
     }
 
-    error_log('[reprint_ticket] File content read, size: ' . strlen($fileContent) . ' bytes');
+    // Costruisci plateLine con CLASSE
+    $plateLine = $plateNumberTicket
+        ? ('TARGA: ' . $plateNumberTicket . '   CLASSE: ' . $fasciaTicket)
+        : 'TARGA: __________   CLASSE: ' . $fasciaTicket;
 
-    if (!is_dir(PRINT_DIR)) {
-        error_log('[reprint_ticket] PRINT_DIR does not exist, creating it');
-        if (!@mkdir(PRINT_DIR, 0777, true)) {
-            throw new Exception('Impossibile creare cartella: ' . PRINT_DIR);
-        }
+    // Linee anagrafiche garage
+    $garageLines = [
+        $garage['ragione_sociale'],
+        $garage['nome_cognome'] ?? '',
+        trim(($garage['indirizzo'] ?? '') . ' ' . ($garage['cap'] ?? '') . ' ' . ($garage['citta'] ?? '') . ' (' . ($garage['provincia'] ?? '') . ')'),
+        'P.IVA: ' . ($garage['piva'] ?? '') . '   CF: ' . ($garage['cf'] ?? ''),
+        'Tel: ' . ($garage['tel'] ?? '') . '   Cell: ' . ($garage['cell'] ?? ''),
+        'Email: ' . ($garage['email'] ?? ''),
+    ];
+
+    $footer = "Presentare questo biglietto al ritiro del veicolo.\nPresent this ticket when collecting the vehicle.";
+
+    // ===== PRIMO TICKET (copia originale, barcode secondario) =====
+    $lines = [];
+    $lines[] = str_repeat('=', 32);
+    foreach ($garageLines as $gl) {
+        if (trim($gl) !== '') $lines[] = $gl;
+    }
+    $lines[] = str_repeat('-', 32);
+    $lines[] = 'TICKET: ' . $barcodeSecondary;
+    $lines[] = $plateLine;
+    $lines[] = 'INGRESSO: ' . $entryDateFmt . '  ' . $entryTimeFmt;
+    $lines[] = str_repeat('-', 32);
+    $lines[] = $footer;
+    $lines[] = '';
+    $lines[] = 'BARCODE:'; // solo immagine barcode, nessun testo
+    $lines[] = str_repeat('=', 32);
+    $lines[] = '';
+    $firstTicketText = implode(PHP_EOL, $lines);
+
+    // ===== SECONDO TICKET (piccolo, barcode secondario) =====
+    $smallLines = [];
+    $smallLines[] = str_repeat('=', 32);
+    $smallLines[] = $garage['ragione_sociale'];
+    $smallLines[] = str_repeat('-', 32);
+    $smallLines[] = $plateLine;
+    $smallLines[] = 'INGRESSO: ' . $entryDateFmt . '  ' . $entryTimeFmt;
+    $smallLines[] = 'BARCODE:'; // barcode secondario, solo immagine
+    $smallLines[] = str_repeat('=', 32);
+    $smallLines[] = '';
+    $secondTicketText = implode(PHP_EOL, $smallLines);
+
+    // Stampa primo ticket con barcode secondario
+    $printResult = escpos_print_txt_with_barcode($firstTicketText, $barcodeSecondary);
+    if (!$printResult['success']) {
+        error_log('[reprint_ticket] PRINT WARNING (primo ticket): ' . ($printResult['message'] ?? 'unknown'));
     }
 
-    if (!is_writable(PRINT_DIR)) {
-        throw new Exception('Cartella PRINT_DIR non scrivibile: ' . PRINT_DIR);
+    // Stampa secondo ticket con barcode secondario
+    $printResult2 = escpos_print_txt_with_barcode($secondTicketText, $barcodeSecondary);
+    if (!$printResult2['success']) {
+        error_log('[reprint_ticket] PRINT WARNING (secondo ticket): ' . ($printResult2['message'] ?? 'unknown'));
     }
 
-    error_log('[reprint_ticket] PRINT_DIR is writable');
-
-    $reprintCount = 0;
-    for ($i = 1; $i <= 100; $i++) {
-        $reprintFileName = 'TICKET_' . $ticketCode . '-' . $i . '.txt';
-        $reprintFilePath = PRINT_DIR . '/' . $reprintFileName;
-
-        if (!file_exists($reprintFilePath)) {
-            $reprintCount = $i;
-            break;
-        }
-    }
-
-    error_log('[reprint_ticket] Reprint count: ' . $reprintCount);
-
-    if ($reprintCount === 0) {
-        throw new Exception('Limite di ristampe raggiunto (100)');
-    }
-
-    $reprintFileName = 'TICKET_' . $ticketCode . '-' . $reprintCount . '.txt';
-    $reprintFilePath = PRINT_DIR . '/' . $reprintFileName;
-
-    error_log('[reprint_ticket] Creating reprint file: ' . $reprintFilePath);
-
-    $bytesWritten = @file_put_contents($reprintFilePath, $fileContent);
-    if ($bytesWritten === false) {
-        $lastError = error_get_last();
-        throw new Exception('Errore creazione file ristampa: ' . $reprintFilePath . ' (' . ($lastError ? $lastError['message'] : 'unknown') . ')');
-    }
-
-    error_log('[reprint_ticket] File created successfully, bytes written: ' . $bytesWritten);
-
+    // Log DB ristampa (best-effort, senza numerazione file)
     try {
         $stmt2 = $db->prepare("
             INSERT INTO tickets_printed_reprint 
             (ticket_id, ticket_code, plate_id, passage_id, reprinted_by, reprint_number, reprint_filename)
-            VALUES (?, ?, ?, ?, 'web', ?, ?)
+            VALUES (?, ?, ?, ?, 'web', 1, ?)
         ");
-
         if ($stmt2) {
             $stmt2->execute([
                 $ticket['id'],
                 $ticketCode,
                 $plateId,
                 $passageId,
-                $reprintCount,
-                $reprintFileName
+                'REPRINT_' . $ticketCode
             ]);
-            error_log('[reprint_ticket] DB record inserted successfully');
         }
-    } catch (Exception $dbError) {
+    } catch (Throwable $dbError) {
         error_log('[reprint_ticket] DB warning (non-fatal): ' . $dbError->getMessage());
     }
 
-    // ✅ NEW: stampa ESC/POS "carina A" dal TXT + barcode vero (ticket_code)
-    $printResult = escpos_print_txt_with_barcode_from_file($reprintFilePath, $ticketCode);
+    $response['success'] = true;
+    $response['message'] = '✅ Ticket ristampato correttamente (barcode secondario: ' . $barcodeSecondary . ')';
+    $response['data'] = [
+        'ticket_code' => $ticketCode,
+        'barcode_secondary' => $barcodeSecondary,
+        'entry_datetime' => $ticket['entry_datetime'],
+        'exit_datetime' => $ticket['exit_datetime'],
+        'printer' => $printResult,
+        'printer2' => $printResult2 ?? null
+    ];
 
-    if (!$printResult['success']) {
-        error_log('[reprint_ticket] PRINT WARNING: ' . ($printResult['message'] ?? 'unknown'));
-        // Se vuoi che la ristampa FALLISCA quando la stampa fallisce, scommenta:
-        // throw new Exception('Stampa fallita: ' . ($printResult['message'] ?? 'unknown'));
+    // opzionale: info in debug
+    $debug = !empty($_GET['debug']);
+    if ($debug) {
+        $response['data']['first_ticket_text'] = $firstTicketText;
     }
 
-    // ✅ URL pubblico del file (NON filesystem)
-    $printUrlBase = defined('PRINT_URL')
-        ? rtrim(PRINT_URL, "/\\")
-        : (defined('BASE_PATH') ? rtrim(BASE_PATH, "/\\") . '/print' : '/anpr/print');
-
-    $fileUrl = $printUrlBase . '/' . rawurlencode($reprintFileName);
-
-    $response['success'] = true;
-    $response['message'] = '✅ Ticket ristampato correttamente';
-$response['data'] = [
-    'ticket_code' => $ticketCode,
-    'reprint_number' => $reprintCount,
-    'reprint_filename' => $reprintFileName,
-    'entry_datetime' => $ticket['entry_datetime'],
-    'exit_datetime' => $ticket['exit_datetime'],
-    'printer' => $printResult
-];
-
-// opzionale: info file solo in debug
-$debug = !empty($_GET['debug']);
-if ($debug) {
-    $response['data']['file_path'] = $reprintFilePath;
-    $response['data']['file_url'] = $fileUrl;
-}
     error_log('[reprint_ticket] SUCCESS - ' . json_encode($response['data']));
 
     if (function_exists('logEvent')) {
-        logEvent('ticket', "Ticket ristampato: CODE=$ticketCode REPRINT_NUM=$reprintCount FILE=$reprintFileName");
+        logEvent('ticket', "Ticket ristampato: CODE=$ticketCode BARCODE_SEC=$barcodeSecondary");
     }
 
 } catch (Throwable $e) {

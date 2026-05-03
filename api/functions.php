@@ -1,5 +1,20 @@
 <?php
 require_once __DIR__ . '/escpos.php';
+
+/**
+ * Restituisce la parte finale del codice ticket (dopo l'ultimo '-').
+ * Es: "T20260419-170228-D27BE" -> "D27BE"
+ * Se non c'è trattino, restituisce il codice originale.
+ */
+function ticketCodeSuffix(string $code): string {
+    if ($code === '') return '';
+    $pos = strrpos($code, '-');
+    if ($pos !== false) {
+        return substr($code, $pos + 1);
+    }
+    return $code;
+}
+
 function cleanDateTimeNoSec($dt) {
     if (!$dt) return '';
     if ($dt instanceof DateTimeInterface) {
@@ -70,7 +85,7 @@ function computeDurationParts($start, $end): array {
     return ['giorni' => $giorni, 'ore' => $ore, 'minuti' => $minuti, 'valid' => true];
 }
 
-function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = null) {
+function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = null, $umFlag = false) {
     if (!$db) {
         require_once __DIR__ . '/../config/config.php';
         $db = getDatabaseConnection();
@@ -124,7 +139,8 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
 
                 COALESCE(c.invoice_price, c.prezzo, ip.price) AS prezzo,
                 COALESCE(c.Pticket_code, c.Tticket_code) AS ticket_code,
-                c.idpassages
+                c.idpassages,
+                COALESCE(c.fascia, '') AS fascia
             FROM invoices_printed ip
             LEFT JOIN cassa c ON c.invoice_code = ip.receipt_code
             LEFT JOIN plates p ON p.id = c.Tplate_id
@@ -164,6 +180,7 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
                 $data['minuti'] = 0;
                 $data['ticket_code'] = '';
                 $data['idpassages'] = null;
+                $data['fascia'] = '';
             }
         } catch (Throwable $e) {
             $data = null;
@@ -223,25 +240,21 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
     // ===== PREZZO =====
     $importo = number_format((float)($data['prezzo'] ?? 0), 2, ',', '.');
 
-    // ===== RIGHE OPZIONALI =====
-    $ticketLine = '';
-    if (!empty($data['ticket_code'])) {
-        $ticketLine = "TICKET: {$data['ticket_code']}\n";
-    }
+    // ===== FASCIA (CLASSE) =====
+    $fascia = trim((string)($data['fascia'] ?? ''));
 
-    $passageLine = '';
-    if (!empty($data['idpassages'])) {
-        $passageLine = "ID PASSAGGIO: {$data['idpassages']}\n";
-    }
-
-    $barcodeValue = !empty($data['ticket_code'])
-        ? $data['ticket_code']
-        : ($data['receipt_code'] ?? $receiptCode);
-
+    // ===== TARGA LINE con CLASSE e flag UM =====
     $plateNumber = !empty($data['plate_number']) ? $data['plate_number'] : '-';
-    $plateId     = isset($data['plate_id']) ? $data['plate_id'] : '-';
 
-    // ===== TESSERA LINE (come tua, robusta) =====
+    $targaLine = 'TARGA: ' . $plateNumber . '   CLASSE: ' . $fascia;
+    if ($umFlag) {
+        $targaLine .= '     UM';
+    }
+
+    // ===== BARCODE VALUE (ricevuta) =====
+    $barcodeValue = $data['receipt_code'] ?? $receiptCode;
+
+    // ===== TESSERA LINE =====
     $tesseraLineFinal = '';
     $rc = trim((string)($data['receipt_code'] ?? $receiptCode ?? ''));
     if ($rc !== '' && $db instanceof PDO) {
@@ -268,28 +281,29 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
         }
     }
 
-    // ===== CORPO RICEVUTA (FORMATO INVARIATO) =====
+    // ===== CORPO RICEVUTA (NUOVO FORMATO 80mm, larghezza 42) =====
+    $sep1 = str_repeat('=', 42);
+    $sep2 = str_repeat('-', 42);
+
     $body =
-"================================
+"{$sep1}
 {$ragione_sociale}
 {$indirizzo} {$cap} {$citta} ({$provincia})
-P.IVA: {$piva}   CF: {$cf}
+P.IVA: {$piva} CF: {$cf}
 Tel: {$tel}   Cell: {$cell}
 Email: {$email}
---------------------------------
+{$sep2}
 RICEVUTA: {$data['receipt_code']}
-{$ticketLine}{$passageLine}TARGA: {$plateNumber}
-ID_TARGA: {$plateId}
+{$targaLine}
 INGRESSO: {$ingresso}
 USCITA:   {$uscita}
-DURATA:   {$durata}
-IMPORTO:  € {$importo}
-{$tesseraLineFinal}--------------------------------
-Presentare questo biglietto al ritiro del veicolo. 
+DURATA:   {$durata} - IMPORTO: € {$importo}
+{$tesseraLineFinal}{$sep2}
+Presentare questo biglietto al ritiro del veicolo.
 Present this ticket when collecting the vehicle.
 
 BARCODE: {$barcodeValue}
-================================
+{$sep1}
 ";
 
     // ===== FILE NAME =====

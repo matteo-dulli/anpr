@@ -35,6 +35,7 @@ try {
     $TpayE = isset($body['TpayE']) ? (int)$body['TpayE'] : 0;
     $Tannullato = isset($body['Tannullato']) ? (int)$body['Tannullato'] : 0;
     $Tannultxt = isset($body['Tannultxt']) ? trim((string)$body['Tannultxt']) : '';
+    $umFlag = isset($body['um']) ? (int)$body['um'] : 0;
 
     if ($passageId <= 0) throw new Exception('ID passaggio non valido: ' . $passageId);
 
@@ -61,6 +62,16 @@ try {
     $entry_datetime = !empty($row['entry_datetime']) ? $row['entry_datetime'] : '';
     $exit_datetime  = !empty($row['exit_datetime']) ? $row['exit_datetime'] : date('Y-m-d H:i:s');
     $ticket_code    = isset($row['ticket_code']) ? $row['ticket_code'] : '';
+
+    // Aggiorna flag UM in tickets_printed (best-effort)
+    if ($umFlag && !empty($ticket_code)) {
+        try {
+            $stmtUm = $db->prepare("UPDATE tickets_printed SET um = 1 WHERE ticket_code = ? LIMIT 1");
+            $stmtUm->execute([$ticket_code]);
+        } catch (Throwable $eUm) {
+            error_log('[emit_receipt_passage] UM update warning: ' . $eUm->getMessage());
+        }
+    }
 
     if (empty($entry_datetime) || empty($exit_datetime) || $entry_datetime == ' ' || $exit_datetime == ' ') {
         throw new Exception("Data/ora ingresso o uscita non valorizzata, impossibile emettere la ricevuta!");
@@ -133,7 +144,7 @@ $stmt->execute([
         throw new Exception("Cartella INVOICE_DIR non scrivibile o inesistente: " . $invoiceDir);
     }
 
-    $fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db);
+    $fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db, (bool)$umFlag);
 
     if (is_string($fileCreato) && $fileCreato !== '' && strpos($fileCreato, DIRECTORY_SEPARATOR) === false) {
         $fileCreato = $invoiceDir . DIRECTORY_SEPARATOR . $fileCreato;

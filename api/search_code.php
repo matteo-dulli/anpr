@@ -92,7 +92,7 @@ try {
         $results[] = $r;
     }
 
-    // ========== 2) TICKET (T...) ==========
+    // ========== 2) TICKET (T... o barcode secondario) ==========
     if ($mode === 'exact') {
         $stmt = $db->prepare("
             SELECT
@@ -105,10 +105,11 @@ try {
                 tp.exit_datetime AS exit_datetime
             FROM tickets_printed tp
             WHERE UPPER(tp.ticket_code) = ?
+               OR UPPER(COALESCE(tp.barcode_secondary, SUBSTRING_INDEX(tp.ticket_code, '-', -1))) = ?
             ORDER BY tp.id DESC
             LIMIT ?
         ");
-        $stmt->execute([$qUpper, $limit]);
+        $stmt->execute([$qUpper, $qUpper, $limit]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } else {
         $stmt = $db->prepare("
@@ -122,10 +123,11 @@ try {
                 tp.exit_datetime AS exit_datetime
             FROM tickets_printed tp
             WHERE UPPER(tp.ticket_code) LIKE ?
+               OR UPPER(COALESCE(tp.barcode_secondary, SUBSTRING_INDEX(tp.ticket_code, '-', -1))) LIKE ?
             ORDER BY tp.id DESC
             LIMIT ?
         ");
-        $stmt->execute([$like, $limit]);
+        $stmt->execute([$like, $like, $limit]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

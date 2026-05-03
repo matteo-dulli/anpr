@@ -10,6 +10,14 @@ function updatePlatesList(list) {
         return;
     }
 
+    // Helper locale per suffisso ticket (disponibile prima di app.js)
+    const _suffix = (code) => {
+        if (!code) return '';
+        const s = String(code);
+        const idx = s.lastIndexOf('-');
+        return idx !== -1 ? s.slice(idx + 1) : s;
+    };
+
     container.innerHTML = list.map(plate => {
         const isPassage = plate.is_passage === 1 || plate.is_passage === '1';
         const displayPlate = (plate.plate_corrected || plate.plate_number || '').toUpperCase();
@@ -32,6 +40,11 @@ function updatePlatesList(list) {
                 ? '<div class="plate-badge">MANUALE</div>'
                 : '');
 
+        // Mostra solo la parte finale del codice ticket (se presente)
+        const ticketLine = plate.ticket_code
+            ? `<div class="plate-ticket-code">Ticket: ${_suffix(plate.ticket_code)}</div>`
+            : '';
+
         const dataPlateId  = plate.id;
         const dataIsPass   = isPassage ? '1' : '0';
         const dataPassId   = isPassage ? (plate.passage_id || Math.abs(plate.id)) : '';
@@ -46,6 +59,7 @@ function updatePlatesList(list) {
                     <div class="plate-time">${dateText}</div>
                     <div class="plate-badge">${originLabel}</div>
                     ${extraBadge}
+                    ${ticketLine}
                 </div>
             </div>
         `;
@@ -55,9 +69,12 @@ function updatePlatesList(list) {
     document.querySelectorAll('.plate-item').forEach(item => {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
+            // Manual selection from list: activate UM flag
+            window.currentUM = 1;
+
             const isPassage = item.dataset.isPassage === '1';
-            
+
             if (isPassage) {
                 const passageId = parseInt(item.dataset.passageId, 10);
                 selectPassage(passageId);

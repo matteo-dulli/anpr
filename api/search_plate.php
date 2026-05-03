@@ -16,16 +16,18 @@ try {
 
     $items = [];
 
-    // ===== 1. CERCA IL TICKET IN tickets_printed =====
+    // ===== 1. CERCA IL TICKET IN tickets_printed (per barcode primario o secondario) =====
     $sqlTickets = "
-        SELECT id, ticket_code, plate_id, passage_id, entry_datetime
+        SELECT id, ticket_code, plate_id, passage_id, entry_datetime,
+               COALESCE(barcode_secondary, SUBSTRING_INDEX(ticket_code, '-', -1)) AS barcode_secondary
         FROM tickets_printed
         WHERE ticket_code = ?
+           OR COALESCE(barcode_secondary, SUBSTRING_INDEX(ticket_code, '-', -1)) = ?
         LIMIT 1
     ";
     
     $stmtTickets = $db->prepare($sqlTickets);
-    $stmtTickets->execute([$query]);
+    $stmtTickets->execute([$query, $query]);
     $ticket = $stmtTickets->fetch(PDO::FETCH_ASSOC);
 
     if ($ticket) {
@@ -186,20 +188,23 @@ try {
 
     // =====================================================================
     // ===== 5. NUOVO: CERCA TICKET PER PATTERN in tickets_printed (LIKE) =====
+    //           oppure per barcode secondario (parte finale del codice)
     // =====================================================================
     if (empty($items)) {
         $searchTerm = '%' . $query . '%';
 
         $sqlTicketsLike = "
-            SELECT id, ticket_code, plate_id, passage_id, entry_datetime
+            SELECT id, ticket_code, plate_id, passage_id, entry_datetime,
+                   COALESCE(barcode_secondary, SUBSTRING_INDEX(ticket_code, '-', -1)) AS barcode_secondary
             FROM tickets_printed
             WHERE UPPER(ticket_code) LIKE UPPER(?)
+               OR UPPER(COALESCE(barcode_secondary, SUBSTRING_INDEX(ticket_code, '-', -1))) LIKE UPPER(?)
             ORDER BY entry_datetime DESC
             LIMIT 100
         ";
 
         $stmtTicketsLike = $db->prepare($sqlTicketsLike);
-        $stmtTicketsLike->execute([$searchTerm]);
+        $stmtTicketsLike->execute([$searchTerm, $searchTerm]);
         $ticketsLike = $stmtTicketsLike->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($ticketsLike as $tk) {
