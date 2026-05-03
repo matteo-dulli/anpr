@@ -911,6 +911,12 @@ buttonContainer.innerHTML = `
   }
 }
 
+// ✅ Export renderDetails immediately after definition so window.* is always available
+// even if the script runs in an isolated/module scope.
+// Multiple aliases maintained for backwards compatibility with callers that use different names.
+window.renderDetails = renderDetails;
+window.renderPlateDetailsWithTimes = renderDetails;
+window.renderPlateDetails = renderDetails;
 
 
 // ⏩ PATCH FONDAMENTALE: aggiorna anche dopo ognI CALCOLO PREZZO/AZIONE TEMPO
