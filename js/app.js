@@ -12,6 +12,17 @@ function normalizeSearchInput(raw) {
   return q;
 }
 
+/**
+ * Restituisce solo la parte finale del codice ticket (dopo l'ultimo '-').
+ * Es: "T20260419-170228-D27BE" -> "D27BE"
+ */
+function ticketCodeSuffix(code) {
+  if (!code) return '';
+  const s = String(code);
+  const idx = s.lastIndexOf('-');
+  return idx !== -1 ? s.slice(idx + 1) : s;
+}
+
 // Ticket code tipico: "TYYYYMMDD-HHMMSS-XXXXXX" (es: T20260425-204016-403FD)
 // Regex tollerante: basta che inizi con T + cifre, abbia almeno un trattino e lunghezza minima.
 function isFullTicketCode(s) {
@@ -36,6 +47,11 @@ let autoRefreshInterval = null;
 let autoScanInterval = null;
 let justCreatedManualPlateId = null;
 let connectionStartTime = new Date();
+
+// ================== FLAG UM (Ultima Modalità) ==================
+// 1 = ricevuta deve mostrare UM (barcode secondario, ricerca targa, selezione manuale, finale primario)
+// 0 = ricevuta NON mostra UM (ricerca per codice ticket primario completo)
+window.currentUM = 0;
 
 // ================== RICERCA TICKET / BARCODE ==================
 async function handleTicketSearch() {
@@ -125,7 +141,7 @@ async function handleTicketSearch() {
 
         const meta = [
           isPassage ? `🚶 passaggio#${row.passage_id}` : `🚗 targa#${row.id}`,
-          row.ticket_code ? `🎫 ${row.ticket_code}` : '',
+          row.ticket_code ? `🎫 ${ticketCodeSuffix(row.ticket_code)}` : '',
           when ? `🕒 ${when}` : ''
         ].filter(Boolean).join(' · ');
 
@@ -149,6 +165,9 @@ async function handleTicketSearch() {
           const idx = parseInt(el.dataset.idx, 10);
           const row = results[idx];
           hideTicketSearchDropdown();
+
+          // Ricerca non-full-code: attiva UM
+          window.currentUM = 1;
 
           try {
             // Apri scheda
@@ -213,15 +232,16 @@ async function handleTicketSearch() {
     }
 
     // ✅ Se è codice completo e ho almeno 1 match, apro SUBITO il primo match
+    // Per codice primario completo: UM = 0 (nessuna modalità UM)
     if (isFullTicketCode(query) || isFullReceiptCode(query)) {
+      window.currentUM = 0;
       await applySearchResult(results[0]);
       return;
     }
 
-    // Se non è codice completo:
-    // - se 1 risultato, apri subito
-    // - se >1, mostra rollup
+    // Se non è codice completo: UM = 1
     if (results.length === 1) {
+      window.currentUM = 1;
       await applySearchResult(results[0]);
       return;
     }
@@ -248,6 +268,8 @@ async function handleTicketSearch() {
           const idx = parseInt(el.dataset.idx, 10);
           const row = results[idx];
           hideTicketSearchDropdown();
+          // Rollup da ricerca non-full-code: UM = 1
+          window.currentUM = 1;
           await applySearchResult(row);
         } catch (e) {
           console.error('applySearchResult error:', e);
@@ -437,6 +459,8 @@ function hideTicketSearchDropdown() {
 function formatSearchRow(row) {
     const code = row.code || '';
     const type = row.code_type === 'receipt' ? 'RICEVUTA' : 'TICKET';
+    // Per i ticket mostra solo la parte finale del codice
+    const displayCode = row.code_type === 'receipt' ? code : ticketCodeSuffix(code);
     const plate = row.plate_id ? `targa#${row.plate_id}` : '';
     const passage = row.passage_id ? `passaggio#${row.passage_id}` : '';
     const extra = [plate, passage].filter(Boolean).join(' · ');
@@ -444,7 +468,7 @@ function formatSearchRow(row) {
     // se dal ticket abbiamo ricevuta collegata, mostro anche quella
     const receipt = row.receipt_code ? ` → ${row.receipt_code}` : '';
 
-    return `${type}: ${code}${receipt}${extra ? '  (' + extra + ')' : ''}`;
+    return `${type}: ${displayCode}${receipt}${extra ? '  (' + extra + ')' : ''}`;
 }
 
 async function fetchSearchSuggestions(q) {
@@ -488,7 +512,7 @@ async function runTicketSearchAutocomplete(q) {
       const when = row.date_detected ? new Date(String(row.date_detected).replace(' ', 'T')).toLocaleString('it-IT') : '';
       const meta = [
         isPassage ? `🚶 passaggio#${row.passage_id}` : `🚗 targa#${row.id}`,
-        row.ticket_code ? `🎫 ${row.ticket_code}` : '',
+        row.ticket_code ? `🎫 ${ticketCodeSuffix(row.ticket_code)}` : '',
         when ? `🕒 ${when}` : ''
       ].filter(Boolean).join(' · ');
 
@@ -510,6 +534,9 @@ async function runTicketSearchAutocomplete(q) {
         const idx = parseInt(el.dataset.idx, 10);
         const row = results[idx];
         hideTicketSearchDropdown();
+
+        // Autocomplete = ricerca non-full-code: UM = 1
+        window.currentUM = 1;
 
         if (Number(row.is_passage) === 1 && row.passage_id) {
           await selectPassage(parseInt(row.passage_id, 10));

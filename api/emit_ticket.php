@@ -75,6 +75,7 @@ if ($isManualPlate && $bodyEntryDate !== '' && $bodyEntryTime !== '') {
     $codeDate  = $now->format('Ymd-His');
     $randPart  = substr(strtoupper(bin2hex(random_bytes(4))), 0, 5);
     $ticketCode = "T{$codeDate}-{$randPart}";
+    $barcodeSecondary = ticketCodeSuffix($ticketCode);
 
     error_log("DEBUG: About to INSERT into tickets_printed with: ticket_code={$ticketCode}, plate_id={$plateId}, entry_datetime={$entryDateTime}");
 
@@ -87,15 +88,17 @@ $stmt = $db->prepare("
         plate_id,
         plate_number,
         entry_datetime,
-        fascia
-    ) VALUES (?, ?, ?, ?, ?)
+        fascia,
+        barcode_secondary
+    ) VALUES (?, ?, ?, ?, ?, ?)
 ");
 $stmt->execute([
     $ticketCode,
     $plateId ?: null,
     $plateNumber,
     $entryDateTime,
-    $fascia
+    $fascia,
+    $barcodeSecondary
 ]);
 
     $printedId = (int)$db->lastInsertId();
@@ -142,7 +145,9 @@ $stmt->execute([
         'Email: ' . $garage['email'],
     ];
 
-    $plateLine = $plateNumber ? ('TARGA: ' . $plateNumber) : 'TARGA: __________';
+    $plateLine = $plateNumber
+        ? ('TARGA: ' . $plateNumber . '   CLASSE: ' . ($fascia ?? ''))
+        : 'TARGA: __________   CLASSE: ' . ($fascia ?? '');
 
     // ===== 7. COSTRUISCI TESTO BIGLIETTO (PER FILE DI STAMPA) =====
     $lines = [];
@@ -153,13 +158,13 @@ $stmt->execute([
         }
     }
     $lines[] = str_repeat('-', 32);
-    $lines[] = 'TICKET: ' . $ticketCode;
+    $lines[] = 'TICKET: ' . $barcodeSecondary; // mostra solo la parte finale
     $lines[] = $plateLine;
     $lines[] = 'INGRESSO: ' . $entryDate . '  ' . $entryTime;
     $lines[] = str_repeat('-', 32);
     $lines[] = $footer;
     $lines[] = '';
-    $lines[] = 'BARCODE: ' . $ticketCode; // qui il servizio di stampa genera il codice a barre vero
+    $lines[] = 'BARCODE:'; // solo codice a barre grafico, nessun testo visibile
     $lines[] = str_repeat('=', 32);
     $lines[] = ''; // riga vuota finale
 
@@ -190,12 +195,29 @@ $stmt->execute([
         throw new Exception('Impossibile scrivere il file di stampa: ' . $fullPath);
     }
 
-    // ✅ NEW: stampa ESC/POS "carina A" + barcode vero (CODE128) usando il file TXT
-    // Nota: non modifichiamo il TXT, lo usiamo come sorgente.
+    // ✅ NEW: stampa ESC/POS primo ticket (barcode = codice primario, testo soppresso perché BARCODE: è vuoto)
     $printResult = escpos_print_txt_with_barcode_from_file($fullPath, $ticketCode);
-    // $printResult = ['success'=>bool,'message'=>string] - non è fatale se la stampante non risponde
     if (!$printResult['success']) {
-        error_log('[emit_ticket] PRINT WARNING: ' . $printResult['message']);
+        error_log('[emit_ticket] PRINT WARNING (primo ticket): ' . $printResult['message']);
+    }
+
+    // ===== 7b. COSTRUISCI E STAMPA SECONDO TICKET (piccolo, con barcode secondario) =====
+    $smallLines = [];
+    $smallLines[] = str_repeat('=', 32);
+    $smallLines[] = $garage['ragione_sociale'];
+    $smallLines[] = str_repeat('-', 32);
+    $smallLines[] = $plateLine;
+    $smallLines[] = 'INGRESSO: ' . $entryDate . '  ' . $entryTime;
+    $smallLines[] = 'BARCODE:'; // barcode secondario (immagine senza testo)
+    $smallLines[] = str_repeat('=', 32);
+    $smallLines[] = '';
+
+    $smallTicketText = implode(PHP_EOL, $smallLines);
+
+    // Stampa secondo ticket (barcode = barcode_secondary)
+    $printResult2 = escpos_print_txt_with_barcode($smallTicketText, $barcodeSecondary);
+    if (!$printResult2['success']) {
+        error_log('[emit_ticket] PRINT WARNING (secondo ticket): ' . $printResult2['message']);
     }
 
     // ===== 9. PREPARA RISPOSTA JSON =====
@@ -223,9 +245,11 @@ $stmt->execute([
         ],
         'footer'         => $footer,
         'barcode_value'  => $ticketCode,
+        'barcode_secondary' => $barcodeSecondary,
         'print_file'     => $fullPath,
         // ✅ NEW: feedback stampa
-        'printer'        => $printResult
+        'printer'        => $printResult,
+        'printer2'       => $printResult2 ?? null
     ];
 
     $response['success'] = true;

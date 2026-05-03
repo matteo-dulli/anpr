@@ -2,6 +2,15 @@ console.log('📝 details.js caricato (dinamico e lock post-ricevuta)');
 
 var selectedPassageId = null;
 
+// Helper per estrarre la parte finale del codice ticket (dopo l'ultimo '-').
+// Definito qui per garantire disponibilità indipendentemente dall'ordine di caricamento script.
+function ticketCodeSuffix(code) {
+  if (!code) return '';
+  const s = String(code);
+  const idx = s.lastIndexOf('-');
+  return idx !== -1 ? s.slice(idx + 1) : s;
+}
+
 const FIELDS_ALWAYS_ENABLED = [
   'annullato', 'motivo', 'paid', 'pay_cash', 'pay_electronic'
 ];
@@ -936,7 +945,8 @@ async function emitReceiptPassage() {
     TpayC: document.getElementById('pay_cash')?.checked ? 1 : 0,
     TpayE: document.getElementById('pay_electronic')?.checked ? 1 : 0,
     Tannullato: document.getElementById('annullato')?.checked ? 1 : 0,
-    Tannultxt: document.getElementById('motivo')?.value || ''
+    Tannultxt: document.getElementById('motivo')?.value || '',
+    um: window.currentUM || 0
   };
 
   showToast('⏳ Emissione ricevuta...', 'info', 2000);
@@ -984,7 +994,7 @@ async function emitReceiptPassageById(passageId) {
     const response = await fetch(`${API_BASE}/emit_receipt_passage.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ passage_id: passageId, price })
+      body: JSON.stringify({ passage_id: passageId, price, um: window.currentUM || 0 })
     });
 
     const result = await response.json();
@@ -1503,6 +1513,7 @@ let priceText='-';
 if(priceRaw!==''){const n=Number(priceRaw);priceText=isNaN(n)?String(priceRaw):`€${n.toFixed(2)}`;}
 
 const ticketCode=obj.ticket_code||obj.ticketCode||'-';
+const ticketDisplay = (ticketCode !== '-' && ticketCode) ? ticketCodeSuffix(ticketCode) : '-';
 const invoiceCode=obj.invoice_code||'-';
 
 let durata='-';
@@ -1532,7 +1543,7 @@ let html=`
 <div class="image-meta-row"><span class="image-meta-label">Ingresso</span><span class="image-meta-value">${ingresso}</span></div>
 <div class="image-meta-row"><span class="image-meta-label">Uscita</span><span class="image-meta-value">${uscita}</span></div>
 ${passageId!=null?`<div class="image-meta-row"><span class="image-meta-label">ID Passaggio</span><span class="image-meta-value">#${passageId}</span></div>`:''}
-<div class="image-meta-row"><span class="image-meta-label">Codice Ticket</span><span class="image-meta-value">${ticketCode}</span></div>
+<div class="image-meta-row"><span class="image-meta-label">Codice Ticket</span><span class="image-meta-value">${ticketDisplay}</span></div>
 <div class="image-meta-row"><span class="image-meta-label">Codice Ricevuta</span><span class="image-meta-value">${invoiceCode}</span></div>
 <div class="image-meta-row"><span class="image-meta-label">Durata Sosta</span><span class="image-meta-value">${durata}</span></div>
 <div class="image-meta-row"><span class="image-meta-label">Costo Sosta</span><span class="image-meta-value">${priceText}</span></div>
@@ -2623,7 +2634,8 @@ async function emettiRicevutaTarga() {
       TpayC: document.getElementById('pay_cash')?.checked ? 1 : 0,
       TpayE: document.getElementById('pay_electronic')?.checked ? 1 : 0,
       Tannullato: document.getElementById('annullato')?.checked ? 1 : 0,
-      Tannultxt: document.getElementById('motivo')?.value || ''
+      Tannultxt: document.getElementById('motivo')?.value || '',
+      um: window.currentUM || 0
     };
 
     // mutua esclusione contante/elettronico

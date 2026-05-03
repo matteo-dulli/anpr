@@ -207,10 +207,15 @@ foreach($line in $lines){
     $y += 8
     $x = 20   # quiet zone
 
-    # valore: preferisci quello presente nel TXT ("BARCODE: xxx")
-    $bcValue = ""
-    try { $bcValue = $t.Substring(8).Trim() } catch { $bcValue = "" }
-    if($bcValue -eq "") { $bcValue = $Barcode }
+    # estrai valore originale dal TXT ("BARCODE: xxx")
+    $bcOrigValue = ""
+    try { $bcOrigValue = $t.Substring(8).Trim() } catch { $bcOrigValue = "" }
+
+    # se vuoto nel TXT, usa il barcode passato come parametro (ma senza stamparne il testo)
+    $bcValue = if($bcOrigValue -eq "") { $Barcode } else { $bcOrigValue }
+
+    # mostra testo solo se il TXT aveva un valore esplicito
+    $showBcText = ($bcOrigValue -ne "")
 
     if($bcImg -ne $null){
       $g.InterpolationMode=[System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
@@ -218,11 +223,9 @@ foreach($line in $lines){
       $g.DrawImage($bcImg, $x, $y, $bcImg.Width, $bcImg.Height) | Out-Null
       $y += ($bcImg.Height + 6)
 
-      $g.DrawString($bcValue, $mono, $brush, $x, $y) | Out-Null
-      $y += 18
+      if($showBcText){ $g.DrawString($bcValue, $mono, $brush, $x, $y) | Out-Null; $y += 18 }
     } else {
-      $g.DrawString($bcValue, $monoBold, $brush, $x, $y) | Out-Null
-      $y += 22
+      if($showBcText){ $g.DrawString($bcValue, $monoBold, $brush, $x, $y) | Out-Null; $y += 22 }
     }
 
     $y += 10

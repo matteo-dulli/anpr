@@ -83,6 +83,7 @@ try {
     $TpayE      = isset($body['TpayE']) ? (int)$body['TpayE'] : 0;
     $Tannullato = isset($body['Tannullato']) ? (int)$body['Tannullato'] : 0;
     $Tannultxt  = isset($body['Tannultxt']) ? trim((string)$body['Tannultxt']) : '';
+    $umFlag     = isset($body['um']) ? (int)$body['um'] : 0;
 
     $stmt = $db->prepare("
         SELECT 
@@ -107,6 +108,16 @@ try {
     if (!$ticket || empty($ticket['ticket_code'])) throw new Exception("Ticket non trovato");
     $ticket_code = $ticket['ticket_code'];
     $fasciaFromTicket = $ticket['tp_fascia'] ?? null;
+
+    // Salva flag UM in tickets_printed (best-effort)
+    if ($umFlag && !empty($ticket['tickets_printed_id'])) {
+        try {
+            $stmtUm = $db->prepare("UPDATE tickets_printed SET um = 1 WHERE id = ? LIMIT 1");
+            $stmtUm->execute([$ticket['tickets_printed_id']]);
+        } catch (Throwable $eUm) {
+            error_log('[emit_receipt_plate] UM update warning: ' . $eUm->getMessage());
+        }
+    }
 
     $stmtAnn = $db->prepare("
         SELECT COALESCE(Tannullato,0) AS Tannullato
@@ -289,7 +300,7 @@ try {
         throw new Exception("Cartella INVOICE_DIR non scrivibile o inesistente: " . $invoiceDir);
     }
 
-    $fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db);
+    $fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db, (bool)$umFlag);
     if (!$fileCreato || !file_exists($fileCreato)) {
         throw new Exception('Errore fisico nella scrittura della ricevuta TXT!');
     }
@@ -364,7 +375,7 @@ try {
         error_log('[emit_receipt_plate] Tessera scalare warning: ' . $eTess->getMessage());
     }
 
-    $fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db);
+    $fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db, (bool)$umFlag);
     if (!$fileCreato || !file_exists($fileCreato)) {
         throw new Exception('Errore fisico nella scrittura della ricevuta TXT (rigenerazione dopo tessera)!');
     }
