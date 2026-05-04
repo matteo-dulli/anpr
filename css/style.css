@@ -393,7 +393,7 @@ html, body {
 
 /* ===== COLONNA CENTRALE: DETTAGLI ===== */
 .details-section {
- 	max-width: 850px;
+	max-width: 850px;
   min-width: 370px;
   flex: 1 1 0px;
   box-sizing: border-box;
@@ -860,26 +860,18 @@ html, body {
   grid-template-columns: 180px 180px;
   gap: 10px;
   align-items: stretch;
-  height: 44px; /* ✅ era 40px: alzato per arrivare alla linea azzurra */
+  height: 40px;
 }
-
-/* ✅ Barra in alto: stessi "larghi", ma più alti */
-#emitTicketBtn.btn-emit,
-#reprintTicketBtn.btn-reprint {
-  height: 44px;          /* ✅ aumenta altezza */
-  padding: 0 16px;       /* ✅ niente padding verticale, solo orizzontale */
-  font-size: 14px;
-  font-weight: 600;
-}
-
 .btn-emit,
 .btn-reprint {
   flex: 1;
   max-width: 180px;
-  /* padding/height gestiti sopra per i bottoni in barra */
+  padding: 12px 16px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
   transition: all 0.3s ease;
   white-space: nowrap;
   text-align: center;
@@ -923,12 +915,6 @@ html, body {
   background-color: #d97706;
   cursor: not-allowed;
   opacity: 0.6;
-}
-
-/* ✅ Dettagli: Calcola / Ricevuta / Ristampa più larghi (>= doppio) */
-.dettagli-button-row > button,
-.passaggio-buttons-row > button {
-  min-width: 140px; /* circa doppio dei classici */
 }
 
 #detailsPanel {
@@ -1012,4 +998,463 @@ html, body {
 }
 /* Forza larghezza box meta/immagine terza colonna */
 #imageBox, .image-section {
-[...]
+  min-width: 340px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.image-meta, .image-box-inner {
+  min-width: 320px !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Passaggio: rendi gruppo importi grande, ore/min piccoli */
+.form-group-costo input[type="number"] {
+  font-size: 18px;
+  height: 38px;
+  padding: 0 10px;
+}
+.form-group-small input[type="number"] {
+  width: 45px;
+  min-width: 38px;
+  font-size: 13px;
+  text-align: center;
+  padding: 0;
+}
+/* ---- PASSAGGIO: GRIGLIA CAMPI GRANDE E SPAZIATI + BOTTONI UNIFORMI ---- */
+.passaggio-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.form-group-costo input,
+#passagePrice, #prezzo {
+  font-size: 16px;
+  height: 38px;
+  padding: 0 10px;
+  min-width: 100px;
+  max-width: 140px;
+  text-align: right;
+  background: #f5faf5;
+}
+
+.form-group-small input {
+  width: 50px;
+  min-width: 38px;
+  font-size: 13px;
+  text-align: center;
+  padding: 0;
+  background: #f1f5f9;
+}
+
+.form-group,
+.form-group-costo,
+.form-group-small {
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 0;
+}
+
+/* Spazio bottoni orizzontale */
+.passaggio-buttons-row {
+  display: flex;
+  gap: 18px;
+  margin: 15px 0 0 0;
+  flex-wrap: wrap;
+}
+
+.btn-small, .btn-calc, .btn-receipt {
+  min-width: 80px;
+  height: 36px;
+  font-size: 13px;
+  padding: 6px 18px;
+  border-radius: 4px;
+}
+
+#imageBox, .image-section {
+  min-width: 340px !important;
+  max-width: 410px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.image-meta, .image-box-inner {
+  min-width: 320px !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+.dettagli-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.dettagli-button-row button,
+.dettagli-button-row .btn-small {
+  min-width: 80px;
+  max-width: 180px;
+  height: 36px;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+/* Spinner Giorni/Ore/Minuti: compatti ma ben leggibili */
+#giorni, #ore, #minuti,
+input#giorni, input#ore, input#minuti,
+.form-group input[type="number"]:read-only {
+  width: 43px;      /* <--- ridotto ma aumentato font */
+  min-width: 38px;
+  max-width: 48px;
+  font-size: 16px;
+  height: 34px;
+  text-align: center;
+  padding: 2px 0;
+  background: #fffbe7;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+/* Alcune label potrebbero stringere troppo: riduci il font anche lì */
+.form-group label {
+  font-size: 11px;
+  margin-bottom: 2px;
+  padding-right: 2px;
+  white-space: nowrap;
+}
+.accordion-content {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.header-datetime{
+  color:#fff;
+  font-weight:600;
+  font-size:14px;
+  opacity:0.95;
+
+  /* FIX: evita spostamenti/sovrapposizioni */
+  margin-right: 0;          /* era 18px: ora lo spacing lo gestisce .header gap */
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+}
+.db-status{display:flex;align-items:center;gap:8px;color:#fff;font-weight:600;}
+.db-dot{width:10px;height:10px;border-radius:50%;background:#9ca3af;display:inline-block;}
+.db-dot.ok{background:#22c55e;}      /* verde */
+.db-dot.bad{background:#ef4444;}     /* rosso */
+.db-dot.wait{background:#f59e0b;}    /* arancio */
+/* riga pagamenti/annullamento: non sovrapporre, vai a capo */
+.pay-annull-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px 18px;
+  align-items:center;
+}
+
+.pay-group{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:120px;
+}
+
+.annull-group{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  min-width:260px;
+}
+
+.annull-group input[type="text"]{
+  width:240px;
+  max-width: 100%;
+}
+.search-ticket-container {
+  position: relative;
+}
+
+.ticket-search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 99999;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  display: none;
+  max-height: 280px;
+  overflow-y: auto;
+  min-width: 260px;
+}
+/* ===== Fix layout barra ricerca: evita sovrapposizioni con Ristampa ===== */
+
+/* blocco bottoni ticket (emetti/ristampa) non deve restringersi troppo */
+.ticket-buttons-container{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;          /* se lo spazio è poco, va a capo invece di sovrapporsi */
+  align-items:center;
+}
+
+/* ===== Input ricerca unico (Ticket/Ricevuta/Targa/ID) ===== */
+.search-row-main .search-item input#searchTicketInfo{
+  min-width:240px;         /* evita che si infiltri sotto ristampa */
+  width:280px;             /* puoi aumentare a 320px se vuoi */
+  max-width:100%;
+}
+
+/* ===== Spingi Cerca/Reset a destra ===== */
+.search-buttons-wrapper{
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+  margin-left:auto;        /* chiave: va a destra nella riga */
+}
+
+/* rende l'ultimo search-item (quello con i bottoni) "elasticamente" a destra */
+.search-row-main .search-item:last-child{
+  margin-left:auto;
+}
+
+/* opzionale: su schermi stretti, metti a capo e allinea bene */
+@media (max-width: 1200px){
+  .search-row-main .search-item input#searchTicketInfo{
+    width:100%;
+    min-width:220px;
+  }
+}
+.db-status{
+  position: relative;
+  display:inline-block;
+  width:120px;
+  height:22px;
+  vertical-align:middle;
+}
+.db-status .db-layer{
+  position:absolute;
+  left:0; top:0; right:0; bottom:0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .12s linear;
+}
+.db-status.db-wait .db-wait-layer{opacity:1;}
+.db-status.db-ok .db-ok-layer{opacity:1;}
+.db-status.db-bad .db-bad-layer{opacity:1;}
+
+.db-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.dot-yellow{background:#f7c948;}
+.dot-green{background:#2ecc71;}
+.dot-red{background:#e74c3c;}
+.db-text{white-space:nowrap;font-weight:600;}
+/* ===== ALLINEAMENTO FASCIA RICERCA / FILTRI (tra le 2 linee rosse) ===== */
+
+/* Grid stabile: ogni blocco ha label sopra + controllo sotto */
+.search-row-main{
+  display: grid;
+  grid-template-columns: 90px 260px 330px 1fr 170px; /* giorni | nuova targa | ticket btns | ricerca | cerca/reset */
+  gap: 12px 14px;
+  align-items: end; /* tutti allineati sul fondo (controlli) */
+}
+
+/* Ogni .search-item = colonna con label sopra e controllo sotto */
+.search-item{
+  display: grid;
+  grid-template-rows: 18px auto; /* label / controlli */
+  row-gap: 6px;
+  min-width: 0;
+}
+
+/* controlli tutti alla stessa altezza */
+.search-item input[type="text"],
+.search-item input[type="number"]{
+  height: 40px;
+  line-height: normal;     /* IMPORTANT: meglio di 40px su Firefox */
+  padding: 0 10px;         /* fallback */
+  padding-top: 8px;        /* centra verticalmente */
+  padding-bottom: 8px;     /* centra verticalmente */
+  font-size: 13px;
+  box-sizing: border-box;
+  appearance: auto;        /* mantiene le frecce */
+}
+.search-item select,
+.search-item button {
+  height: 40px;
+  box-sizing: border-box;
+}
+
+/* input coerenti */
+.search-item input[type="text"],
+.search-item input[type="number"]{
+  height: 40px;
+  line-height: normal;
+  padding-left: 10px;
+  padding-right: 10px;
+
+  /* numero era basso -> alzo di 2px */
+  padding-top: 10px;
+  padding-bottom: 6px;
+
+  font-size: 13px;
+  box-sizing: border-box;
+  appearance: auto;  /* mantiene le frecce */
+}
+/* FIX: input number (Giorni) allineato come gli altri */
+.search-item input[type="number"]{
+  height: 40px;
+  line-height: 40px;   /* centra verticalmente il numero */
+  padding: 0 10px;
+  font-size: 13px;
+}
+/* Chrome/Edge: normalizza l'altezza delle frecce */
+.search-item input[type="number"]::-webkit-outer-spin-button,
+.search-item input[type="number"]::-webkit-inner-spin-button{
+  height: 40px;
+  margin: 0;
+}
+
+/* wrapper interni (quelli con style inline) non devono alterare l'altezza */
+.search-item > div {
+  height: 40px;          /* FIX: forza stessa altezza della riga controlli */
+  display: flex;
+  align-items: stretch;  /* FIX: input e button si stirano uguali */
+  gap: 8px;
+  min-width: 0;
+}
+
+
+/* --- Nuova targa: input + bottone stessa altezza --- */
+/* NEW: se dentro hai wrapper flex, allinea bene */
+.search-item > div {
+  min-width: 0;
+}
+
+#newPlateInline{
+  width: 100%;
+  font-size: 13px !important;
+}
+
+/* --- Bottoni ticket: stessa larghezza e altezza --- */
+.ticket-buttons-container{
+  display: grid;
+  grid-template-columns: 170px 170px; /* stessa larghezza */
+  gap: 10px;
+  align-items: center;
+}
+#emitTicketBtn,
+#reprintTicketBtn{
+  height: 40px;
+  width: 180px;
+  padding: 0 14px;       /* FIX: niente padding verticale */
+}
+
+/* --- Ricerca: input full width e allineato --- */
+#searchTicketWrapper input#searchTicketInfo{
+  width: 100%;
+  height: 38px;
+}
+
+/* --- Cerca/Reset: stessa altezza, larghezze coerenti --- */
+.search-buttons-wrapper{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  height: 40px;
+  align-items: stretch;
+}
+#searchBtn, #resetBtn{
+  height: 40px;
+  padding: 0 12px;       /* FIX */
+}
+#searchBtn,
+#resetBtn{
+  height: 38px;
+  min-width: 0;
+}
+
+/* Responsive: se lo schermo è stretto, vai a 2 righe senza “rompere” */
+@media (max-width: 1200px){
+  .search-row-main{
+    grid-template-columns: 120px 1fr 1fr;
+    grid-auto-rows: auto;
+  }
+
+  /* metti la ricerca a tutta riga */
+  #searchTicketWrapper{ grid-column: 1 / -1; }
+  .search-buttons-wrapper{ grid-column: 1 / -1; grid-template-columns: 1fr 1fr; }
+}
+/* Giorni: mantieni le frecce ma rendilo visivamente uguale agli altri */
+#searchDays{
+  font-size: 13px;
+  padding: 0 10px;
+  line-height: normal;
+  appearance: auto;
+}
+/* Wrapper che garantisce stessa altezza percepita anche per input number in Firefox */
+.control-wrap{
+  height: 40px;
+  display: flex;
+  align-items: stretch;
+}
+
+/* L'input riempie il wrapper */
+.control-wrap > input{
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+.plate-badges { margin-left: 8px; }
+.badge { font-size: 14px; margin-left: 6px; }
+.badge-on  { color: #22c55e; }   /* verde */
+.badge-off { color: #9ca3af; }   /* grigio */
+.plate-flags{
+  margin-top: 4px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.plate-flag-icon{
+  font-size: 14px;
+  line-height: 1;
+}
+
+.plate-flag-icon.on{
+  color: #16a34a;   /* verde */
+  filter: none;
+  opacity: 1;
+}
+
+.plate-flag-icon.off{
+  color: #9ca3af;   /* grigio */
+  opacity: 0.9;
+}
+/* --- FIX: colori icone abbonamento/tessera --- */
+.plate-flags .plate-flag-icon.on {
+  color: #16a34a !important;   /* verde */
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.plate-flags .plate-flag-icon.off {
+  color: #9ca3af !important;   /* grigio */
+  opacity: 0.9 !important;
+  filter: grayscale(1) !important;
+}
+#fascia{
+  min-width: 220px;   /* prova 220 / 240 / 260 finché non taglia più */
+}

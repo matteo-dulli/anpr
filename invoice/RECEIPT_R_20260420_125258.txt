@@ -1,0 +1,20 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260420_125258
+TARGA: GM350TJ
+ID_TARGA: 6573
+INGRESSO: 2026-04-19 19:28:00
+USCITA:   2026-04-20 12:52:00
+DURATA:   17h 24m
+IMPORTO:  € 0,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: R_20260420_125258
+================================

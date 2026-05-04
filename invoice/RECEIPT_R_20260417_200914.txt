@@ -1,0 +1,20 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260417_200914
+TARGA: GT713YK
+ID TARGA: 5838
+INGRESSO: 2026-04-17  12:30
+USCITA:   2026-04-17  20:09
+DURATA:   7h 39m
+IMPORTO:  € 19,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: R_20260417_200914
+================================

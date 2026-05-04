@@ -1637,6 +1637,32 @@ function startHeaderClock() {
 
   resetIdle();
 })();
+// ================== AUTO-FOCUS SU RICERCA DOPO CLICK SU PULSANTI (eccetto Reset) ==================
+(function setupFocusOnSearchAfterButtons() {
+  const INPUT_ID = 'searchTicketInfo';
+  const RESET_ID = 'resetBtn';
+
+  const focusSearch = () => {
+    const el = document.getElementById(INPUT_ID);
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    try { el.select(); } catch (_) {}
+  };
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    // escludi RESET
+    if (btn.id === RESET_ID) return;
+
+    // non rubare focus se cliccano su campi form
+    if (e.target.closest('input, textarea, select')) return;
+
+    // fai focus dopo l’handler del bottone
+    setTimeout(focusSearch, 0);
+  }, true);
+})();
 function printHiddenUrl(url) {
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';

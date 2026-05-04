@@ -1,0 +1,20 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260418_174011
+TARGA: GL565ZX
+ID TARGA: 6160
+INGRESSO: 2026-04-17  23:55
+USCITA:   2026-04-18  17:40
+DURATA:   17h 45m
+IMPORTO:  € 19,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: R_20260418_174011
+================================
