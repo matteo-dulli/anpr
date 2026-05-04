@@ -1,0 +1,23 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260426_170247
+TICKET: T20260426-170241-FEC33
+TARGA: GB218SN
+ID_TARGA: 8026
+INGRESSO: 26/04/2026 16:56
+USCITA:   26/04/2026 17:02
+DURATA:   6m
+IMPORTO:  € 3,00
+TESSERA N. 7: DETRATTO € 3,00    RESIDUO: € 39,00
+
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo. [TEST-1525]
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260426-170241-FEC33
+================================

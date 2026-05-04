@@ -1,0 +1,21 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260423_185333
+TICKET: T20260422-212800-632CB
+TARGA: HA143NC
+ID_TARGA: 7151
+INGRESSO: 22/04/2026 15:16
+USCITA:   23/04/2026 18:53
+DURATA:   1g 3h 37m
+IMPORTO:  € 31,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260422-212800-632CB
+================================

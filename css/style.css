@@ -128,6 +128,7 @@ html, body {
 
 /* ===== BARRA DI RICERCA ===== */
 .search-section {
+	 height: 96px;
   background: white;
   padding: 8px 10px;
   border-bottom: 1px solid #ddd;
@@ -1068,8 +1069,8 @@ html, body {
 }
 
 .btn-small, .btn-calc, .btn-receipt {
-  min-width: 80px;
-  height: 36px;
+  min-width: 160px;
+  height: 48px;
   font-size: 13px;
   padding: 6px 18px;
   border-radius: 4px;
@@ -1098,9 +1099,9 @@ html, body {
 
 .dettagli-button-row button,
 .dettagli-button-row .btn-small {
-  min-width: 80px;
+  min-width: 160px;
   max-width: 180px;
-  height: 36px;
+  height: 56px;
   font-size: 13px;
   padding: 6px 10px;
   border-radius: 4px;
@@ -1200,14 +1201,17 @@ input#giorni, input#ore, input#minuti,
 }
 /* ===== Fix layout barra ricerca: evita sovrapposizioni con Ristampa ===== */
 
-/* blocco bottoni ticket (emetti/ristampa) non deve restringersi troppo */
+/* Barra in alto: container bottoni */
 .ticket-buttons-container{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;          /* se lo spazio è poco, va a capo invece di sovrapporsi */
-  align-items:center;
+  height: 56px;           /* era 40px */
+  align-items: stretch;
 }
-
+/* Barra in alto: stessi larghi, ma più alti */
+#emitTicketBtn.btn-emit,
+#reprintTicketBtn.btn-reprint{
+  height: 56px;
+  padding: 0 16px;        /* niente padding verticale */
+}
 /* ===== Input ricerca unico (Ticket/Ricevuta/Targa/ID) ===== */
 .search-row-main .search-item input#searchTicketInfo{
   min-width:240px;         /* evita che si infiltri sotto ristampa */

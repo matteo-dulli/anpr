@@ -1,0 +1,21 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260422_212200
+TICKET: T20260422-212152-86F93
+TARGA: GX511YK
+ID_TARGA: 7104
+INGRESSO: 21/04/2026 22:10
+USCITA:   22/04/2026 21:22
+DURATA:   23h 12m
+IMPORTO:  € 19,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260422-212152-86F93
+================================

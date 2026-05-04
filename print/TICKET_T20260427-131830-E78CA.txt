@@ -1,0 +1,16 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+TICKET: T20260427-131830-E78CA
+TARGA: __________
+INGRESSO: 27/04/2026  13:18
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260427-131830-E78CA
+================================

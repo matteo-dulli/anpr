@@ -1,0 +1,21 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260421_090134
+TICKET: T20260421-090124-18410
+TARGA: GJ290RT
+ID_TARGA: 6776
+INGRESSO: 20/04/2026 23:34
+USCITA:   21/04/2026 09:01
+DURATA:   9h 27m
+IMPORTO:  € 35,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260421-090124-18410
+================================

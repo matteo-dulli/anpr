@@ -1,0 +1,21 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260426_145643
+TICKET: T20260426-122036-0718D
+TARGA: GY480DE
+ID_TARGA: 7978
+INGRESSO: 26/04/2026 00:58
+USCITA:   26/04/2026 14:56
+DURATA:   13h 58m
+IMPORTO:  € 38,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260426-122036-0718D
+================================

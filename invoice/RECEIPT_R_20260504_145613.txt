@@ -1,0 +1,16 @@
+==========================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901 CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+------------------------------------------
+RICEVUTA: R_20260504_145613
+TARGA: GD706DS   CLASSE: F3     UM
+INGRESSO: 04/05/2026 14:51
+USCITA:   04/05/2026 14:56
+DURATA:   5m - IMPORTO: € 5,00
+TESSERA N. 4: DETRATTO € 5,00    RESIDUO: € 90,00
+------------------------------------------
+BARCODE: R_20260504_145613
+==========================================

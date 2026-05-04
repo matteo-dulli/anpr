@@ -1,0 +1,21 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260502_190023
+TICKET: T20260502-185955-5BB11
+TARGA: GX928HL
+ID_TARGA: 8195
+INGRESSO: 01/05/2026 23:28
+USCITA:   02/05/2026 19:00
+DURATA:   19h 32m
+IMPORTO:  € 25,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo. 
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260502-185955-5BB11
+================================

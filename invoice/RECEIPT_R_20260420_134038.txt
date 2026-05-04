@@ -1,0 +1,20 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260420_134038
+TARGA: HE390WS
+ID_TARGA: 6585
+INGRESSO: 2026-04-19 20:04
+USCITA:   2026-04-20 13:40
+DURATA:   17h 36m
+IMPORTO:  € 19,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: R_20260420_134038
+================================

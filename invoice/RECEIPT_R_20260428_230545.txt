@@ -1,0 +1,22 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260428_230545
+TICKET: T20260428-230418-A3001
+TARGA: GL857AG
+ID_TARGA: 8259
+INGRESSO: 28/04/2026 14:21
+USCITA:   28/04/2026 23:05
+DURATA:   8h 44m
+IMPORTO:  € 19,00
+TESSERA N. 8: DETRATTO € 19,00    RESIDUO: € 81,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo. 
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260428-230418-A3001
+================================

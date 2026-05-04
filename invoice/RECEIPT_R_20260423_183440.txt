@@ -1,0 +1,22 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260423_183440
+TICKET: T20260423-094452-FD760
+ID PASSAGGIO: 80
+TARGA: -
+ID_TARGA: -
+INGRESSO: 23/04/2026 09:44
+USCITA:   23/04/2026 18:34
+DURATA:   0m
+IMPORTO:  € 19,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo.
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260423-094452-FD760
+================================

@@ -260,7 +260,7 @@ function writeReceiptTxt($receiptCode, $dir = null, $isReprint = false, $db = nu
         if ($tid > 0 && $hasScaled && $hasResAfter) {
             $scaled = number_format((float)$tscRaw, 2, ',', '.');
             $resid  = number_format((float)$traRaw, 2, ',', '.');
-            $tesseraLineFinal = "TESSERA N. {$tid}: DETRATTO € {$scaled}    RESIDUO: € {$resid}\n";
+           $tesseraLineFinal = "TESSERA {$tid}: DETRATTO € {$scaled} RESIDUO: € {$resid}\n";
         }
     }
 

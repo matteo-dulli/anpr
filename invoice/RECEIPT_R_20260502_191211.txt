@@ -1,0 +1,22 @@
+================================
+Garage XYZ S.r.l.
+Via Esempio 1 00100 Roma (RM)
+P.IVA: IT12345678901   CF: RSSMRA...
+Tel: 061234567   Cell: 3331234567
+Email: info@garage.xyz
+--------------------------------
+RICEVUTA: R_20260502_191211
+TICKET: T20260502-191159-C573E
+TARGA: HB720GW
+ID_TARGA: 8181
+INGRESSO: 01/05/2026 20:54
+USCITA:   02/05/2026 19:12
+DURATA:   22h 18m
+IMPORTO:  € 35,00
+TESSERA N. 3: DETRATTO € 35,00    RESIDUO: € 115,00
+--------------------------------
+Presentare questo biglietto al ritiro del veicolo. 
+Present this ticket when collecting the vehicle.
+
+BARCODE: T20260502-191159-C573E
+================================
