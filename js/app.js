@@ -1621,7 +1621,14 @@ function startHeaderClock() {
     const el = document.getElementById(INPUT_ID);
     if (!el) return;
 
-    // solo focus/cursore nell’area di ricerca (come richiesto)
+    // non rubare focus se l'utente sta già scrivendo in un campo
+    const ae = document.activeElement;
+    if (ae && ae !== document.body) {
+      const tag = (ae.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (ae.isContentEditable) return;
+    }
+
     el.focus({ preventScroll: true });
     try { el.select(); } catch (_) {}
   };
@@ -1634,6 +1641,14 @@ function startHeaderClock() {
   // inattività = niente mouse/tastiera (aggiungo touch/wheel per completezza)
   const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'];
   events.forEach(evt => window.addEventListener(evt, resetIdle, { passive: true }));
+
+  // focus immediato sulla ricerca dopo click su qualsiasi pulsante, eccetto reset
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.id === 'resetBtn') return;
+    focusSearch();
+  });
 
   resetIdle();
 })();
