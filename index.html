@@ -16,6 +16,60 @@
     window.ANPR_THUMB_W = window.ANPR_THUMB_W || 320;
     window.ANPR_THUMB_Q = window.ANPR_THUMB_Q || 70;
   </script>
+
+  <!-- ✅ PATCH: autofocus su Ricerca dopo inattività (30s) - SOLO HEAD -->
+  <script>
+  (function setupIdleFocusOnSearch() {
+    'use strict';
+
+    var INPUT_ID = 'searchTicketInfo';
+    var IDLE_MS = 30 * 1000; // 30 secondi
+
+    var timer = null;
+
+    function focusSearch() {
+      var el = document.getElementById(INPUT_ID);
+      if (!el) return;
+
+      // non rubare focus se l’utente sta già scrivendo in un campo
+      var ae = document.activeElement;
+      if (ae && ae !== document.body) {
+        var tag = (ae.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if (ae.isContentEditable) return;
+      }
+
+      el.focus({ preventScroll: true });
+      try { el.select(); } catch (_) {}
+    }
+
+    function reset() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(focusSearch, IDLE_MS);
+    }
+
+    function bind() {
+      // eventi che contano come attività utente
+      ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'].forEach(function (evt) {
+        window.addEventListener(evt, reset, { passive: true });
+      });
+
+      // quando torni sulla tab, riparti
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) reset();
+      });
+
+      reset();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bind);
+    } else {
+      bind();
+    }
+  })();
+  </script>
+  <!-- ✅ FINE PATCH -->
 </head>
 
 <body>

@@ -194,7 +194,7 @@ $stmt->execute([
     }
 
     // ✅ NEW: stampa ESC/POS primo ticket (barcode = codice primario, testo soppresso perché BARCODE: è vuoto)
-    $printResult = escpos_print_txt_with_barcode_from_file($fullPath, $ticketCode);
+    $printResult = escpos_print_txt_with_barcode_from_file($fullPath, $ticketCode, false);
     if (!$printResult['success']) {
         error_log('[emit_ticket] PRINT WARNING (primo ticket): ' . $printResult['message']);
     }
@@ -213,7 +213,7 @@ $stmt->execute([
     $smallTicketText = implode(PHP_EOL, $smallLines);
 
     // Stampa secondo ticket (barcode = barcode_secondary)
-    $printResult2 = escpos_print_txt_with_barcode($smallTicketText, $barcodeSecondary);
+    $printResult2 = escpos_print_txt_with_barcode($smallTicketText, $barcodeSecondary, false);
     if (!$printResult2['success']) {
         error_log('[emit_ticket] PRINT WARNING (secondo ticket): ' . $printResult2['message']);
     }

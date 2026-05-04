@@ -1,5 +1,10 @@
 console.log('📋 plate-management.js caricato');
-
+// ===== Helper: mostra solo ultima parte del ticket_code (dopo l'ultimo "-") =====
+function formatTicketShort(ticketCode) {
+  const t = (ticketCode || '').trim();
+  if (!t) return '-';
+  return t.includes('-') ? t.split('-').pop() : t;
+}
 // ===== UPDATE PLATES LIST (UNICA VERSIONE) =====
 function updatePlatesList(plates) {
     const listEl = document.getElementById('platesList');
@@ -83,19 +88,21 @@ function updatePlatesList(plates) {
         const classAttr = classList.join(' ');
 
         // Badge descrittivo
-        let badgeText = '';
-        if (isPassage) {
-            const passageId = plate.passage_id || plate.id;
-            const ticketCode = plate.ticket_code || '-';
-            const invoiceCode = plate.invoice_code || null;
-            if (invoiceCode) badgeText = `📄 Invoice ${invoiceCode}`;
-            else badgeText = `🚶 Ticket ${ticketCode}`;
-        } else if (isManual) {
-            badgeText = '✏️ Manuale';
-        } else {
-            badgeText = '📸 Rilevata';
-        }
-
+// Badge descrittivo
+let badgeText = '';
+if (isPassage) {
+  const invoiceCode = plate.invoice_code || null;
+  const ticketLast = formatTicketShort(plate.ticket_code);
+  badgeText = invoiceCode ? `📄 Invoice ${invoiceCode}` : `🎟️ Ticket: ${ticketLast}`;
+} else if (isManual) {
+  // se ha ticket_code, mostralo ridotto, altrimenti "Manuale"
+  const ticketLast = formatTicketShort(plate.ticket_code);
+  badgeText = (ticketLast && ticketLast !== '-') ? `🎟️ Ticket: ${ticketLast}` : '✏️ Manuale';
+} else {
+  // rilevata: se ha ticket_code, mostralo ridotto, altrimenti "Rilevata"
+  const ticketLast = formatTicketShort(plate.ticket_code);
+  badgeText = (ticketLast && ticketLast !== '-') ? `🎟️ Ticket: ${ticketLast}` : '📸 Rilevata';
+}
         // ✅ NEW: icone Abbonamento/Tessera in lista (attive = colorate, inattive = grigie)
         // NB: i flag arrivano da get_plates.php (abb_attivo / tessera_attiva)
         const abbAttivo = Number(plate.abb_attivo || 0) === 1;
@@ -109,18 +116,21 @@ function updatePlatesList(plates) {
 		
         let plateContent = '';
         // PATCH: visualizza badge motivazione annullato/pagato
-        if (isPassage) {
-            const passageId = plate.passage_id || plate.id;
-            const ticketCode = plate.ticket_code || '-';
-            const invoiceCode = plate.invoice_code || null;
-            plateContent = `
-                <div class="plate-number">PASSAGGIO #${passageId}</div>
-                <div class="plate-time">🚶 Ticket ${ticketCode}</div>
-                ${invoiceCode ? `<div class="plate-time">📄 Invoice ${invoiceCode}</div>` : ''}
-                ${isAnnullato && plate.motivo ? `<div class="plate-motivo">❌ Motivo: ${plate.motivo}</div>` : ''}
-                ${isPagato ? `<div class="plate-pagato">✔️ Pagato</div>` : ''}
-            `;
-                } else {
+       if (isPassage) {
+    const passageId = plate.passage_id || plate.id;
+    const invoiceCode = plate.invoice_code || null;
+
+    // ✅ Ticket: solo ultima parte (dopo l'ultimo "-")
+    const ticketLast = formatTicketShort(plate.ticket_code);
+
+    plateContent = `
+        <div class="plate-number">PASSAGGIO #${passageId}</div>
+        <div class="plate-time">🎟️ Ticket: ${ticketLast}</div>
+        ${invoiceCode ? `<div class="plate-time">📄 Invoice ${invoiceCode}</div>` : ''}
+        ${isAnnullato && plate.motivo ? `<div class="plate-motivo">❌ Motivo: ${plate.motivo}</div>` : ''}
+        ${isPagato ? `<div class="plate-pagato">✔️ Pagato</div>` : ''}
+    `;
+} else {
             // OLD (senza icone abb/tessera)
             // plateContent = `
             //     <div class="plate-number">${displayPlate}</div>
@@ -176,19 +186,23 @@ function updatePlatesList(plates) {
     ////updateStats(plates.length);
 	if (typeof updateStats === 'function') updateStats(plates.length);
 
-    document.querySelectorAll('.plate-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isPassage = item.dataset.isPassage === '1';
-            if (isPassage) {
-                const passageId = parseInt(item.dataset.passageId, 10);
-                selectPassage(passageId);
-            } else {
-                const plateId = parseInt(item.dataset.plateId, 10);
-                selectPlate(plateId);
-            }
-        });
-    });
+ document.querySelectorAll('.plate-item').forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.stopPropagation();
+
+    // ✅ Selezione manuale dalla colonna sinistra => UM = 1
+    window.currentUM = 1;
+
+    const isPassage = item.dataset.isPassage === '1';
+    if (isPassage) {
+      const passageId = parseInt(item.dataset.passageId, 10);
+      selectPassage(passageId);
+    } else {
+      const plateId = parseInt(item.dataset.plateId, 10);
+      selectPlate(plateId);
+    }
+  });
+});
 }
 
 /*

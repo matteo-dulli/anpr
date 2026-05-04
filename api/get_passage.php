@@ -18,6 +18,22 @@ try {
 
     error_log('🔍 GET_PASSAGE: ID=' . $passage_id);
 
+    // =========================================================
+    // ✅ JOIN ULTIMA RICEVUTA EMESSA (robusto, anche se cassa non ha idpassages/invoice_code)
+    // - Se esistono più ricevute per lo stesso passaggio, prende l'ultima (MAX(id))
+    // =========================================================
+    $joinLastInvoicePrinted = "
+        LEFT JOIN (
+            SELECT ip1.passage_id, ip1.receipt_code
+            FROM invoices_printed ip1
+            INNER JOIN (
+                SELECT passage_id, MAX(id) AS max_id
+                FROM invoices_printed
+                GROUP BY passage_id
+            ) ip2 ON ip2.passage_id = ip1.passage_id AND ip2.max_id = ip1.id
+        ) ip ON ip.passage_id = p.id
+    ";
+
     // ============================
     // QUERY ESTESA (con campi uscita da cassa)
     // Nota: alcune installazioni non hanno datacassa/oraincasso/invoice_exit_datetime.
@@ -49,6 +65,9 @@ try {
 
         c.invoice_code as invoice_code,
 
+        -- ✅ NEW: codice ricevuta realmente emesso (da invoices_printed)
+        ip.receipt_code AS receipt_code,
+
         c.datacassa as datacassa,
         c.oraincasso as oraincasso,
         c.invoice_exit_datetime as invoice_exit_datetime,
@@ -56,6 +75,7 @@ try {
         c.Pexit_datetime as Pexit_datetime
 
     FROM passages p
+    $joinLastInvoicePrinted
     LEFT JOIN cassa c ON p.id = c.idpassages
     LEFT JOIN tickets_printed tp ON p.ticket_printed_id = tp.id
     WHERE p.id = ?
@@ -89,9 +109,13 @@ try {
             COALESCE(c.Pannultxt, '') as motivo,
             COALESCE(tp.fascia, c.fascia, 'F1') as fascia,
 
-            c.invoice_code as invoice_code
+            c.invoice_code as invoice_code,
+
+            -- ✅ NEW: codice ricevuta realmente emesso (da invoices_printed)
+            ip.receipt_code AS receipt_code
 
         FROM passages p
+        $joinLastInvoicePrinted
         LEFT JOIN cassa c ON p.id = c.idpassages
         LEFT JOIN tickets_printed tp ON p.ticket_printed_id = tp.id
         WHERE p.id = ?
@@ -124,10 +148,14 @@ try {
         throw new Exception('Passaggio non trovato: ' . $passage_id);
     }
 
+    // ✅ assicura chiave receipt_code sempre presente
+    $passage['receipt_code'] = $passage['receipt_code'] ?? null;
+
     error_log(
         '✅ Passaggio caricato: ID=' . $passage_id .
         ' FASCIA=' . ($passage['fascia'] ?? '') .
         ' INVOICE_CODE=' . ($passage['invoice_code'] ?? '') .
+        ' RECEIPT_CODE=' . ($passage['receipt_code'] ?? '') .
         ' PAID=' . ($passage['Ppaid'] ?? '') .
         ' CASH=' . ($passage['PpayC'] ?? '') .
         ' ELECTRONIC=' . ($passage['PpayE'] ?? '') .

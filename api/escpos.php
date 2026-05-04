@@ -8,6 +8,7 @@
  *
  * Barcode: native ESC/POS CODE128 (GS k 73) rendered by printer hardware.
  */
+
 function escpos_get_printer_config(): array {
   $c = $GLOBALS['COSTANTI'] ?? [];
 
@@ -49,106 +50,109 @@ function escpos_debug_log(string $msg): void {
 }
 
 /**
- * Estrae "BARCODE: xxx" dal testo. Ritorna '' se non presente.
- */
-function escpos_extract_barcode_from_txt(string $txt): string {
-  if (preg_match('/^\s*BARCODE\s*:\s*(.+?)\s*$/mi', $txt, $m)) {
-    return trim((string)$m[1]);
-  }
-  return '';
-}
-
-/**
  * Costruisce il buffer ESC/POS raw (testo + barcode nativo CODE128).
  *
- * Layout:
- * - Prima riga non-separatore → header centrato, grassetto, doppia altezza
- * - Righe "===..." / "---..." → espanse a 42 caratteri (carta 80 mm)
- * - Riga "BARCODE:" → barcode CODE128 nativo tramite comando GS k 73 {B <data>
+ * REGOLE:
+ * - Il valore barcode NON si legge mai dal TXT.
+ *   La riga "BARCODE:" nel testo è solo un SEGNAPOSTO di posizione.
+ * - showHri:
+ *   - false => NON stampare testo sotto (ticket)
+ *   - true  => stampare testo sotto (ricevuta)
  */
-function escpos_build_raw(string $txt, string $barcodeValue): string {
+function escpos_build_raw(string $txt, string $barcodeValue, bool $showHri = false): string {
   $txt = str_replace("\r\n", "\n", $txt);
   $txt = str_replace("\r", "\n", $txt);
 
-  // Determina il valore del barcode: preferisce quello nel testo
-  $txtBarcode   = escpos_extract_barcode_from_txt($txt);
-  $finalBarcode = $txtBarcode !== '' ? $txtBarcode : trim((string)$barcodeValue);
+  // ✅ barcode ONLY from input/DB (never from TXT)
+  $finalBarcode = trim((string)$barcodeValue);
 
   $out = '';
+  $out .= "\x1B\x40";                 // ESC @ init
+  $out .= "\x1B\x74" . chr(16);       // ✅ WPC1252 (N=16 sulla tua stampante, € OK)
 
-  // ESC @ — inizializza stampante
-  $out .= "\x1B\x40";
-  // Code page PC850 (Latin-1 / Multilingual) — per caratteri accentati italiani
-  $out .= "\x1B\x74\x02";
+  // ✅ Fondamentale: converti UTF-8 -> Windows-1252 (così € diventa 0x80)
+  $txt1252 = @iconv('UTF-8', 'Windows-1252//TRANSLIT', $txt);
+  if ($txt1252 !== false) {
+    $txt = $txt1252;
+  } else {
+    // fallback: se iconv fallisce, evita di mandare il simbolo euro in UTF-8 (3 byte)
+    $txt = str_replace('€', 'EUR', $txt);
+  }
 
   $lines         = preg_split("/\n/", $txt);
   $printedHeader = false;
 
+  // ✅ se troviamo BARCODE: nel template, stampiamo lì
+  $barcodePrinted = false;
+
+  // helper: stampa barcode con le impostazioni richieste
+  $emitBarcode = function () use (&$out, $finalBarcode, $showHri) {
+    if ($finalBarcode === '') return;
+
+    $out .= "\x0A";
+    $out .= "\x1B\x61\x01"; // center
+
+    // HRI on/off (ticket=false => NON stampa testo umano)
+    $out .= $showHri ? "\x1D\x48\x02" : "\x1D\x48\x00";
+    $out .= "\x1D\x66\x00"; // HRI font A
+
+    // ✅ dimensione barcode (più grande di prima)
+    // GS w n = spessore barre (1..6 tipico), GS h n = altezza (1..255)
+    $out .= "\x1D\x77" . chr(2);    // module width 2
+    $out .= "\x1D\x68" . chr(120);  // height 120
+
+    // ✅ CODE128: payload diretto + comando CON LUNGHEZZA
+    $payload = $finalBarcode;
+    if (strlen($payload) > 255) $payload = substr($payload, 0, 255);
+
+    $out .= "\x1D\x6B\x49" . chr(strlen($payload)) . $payload;
+
+    $out .= "\x0A\x0A";
+    $out .= "\x1B\x61\x00"; // left
+  };
+
   foreach ($lines as $line) {
     $trim = trim($line);
 
-    // ── Riga BARCODE ──────────────────────────────────────────────
+    // placeholder BARCODE:
     if (stripos($trim, 'BARCODE:') === 0) {
-      if ($finalBarcode !== '') {
-        // Feed prima del barcode (quiet zone verticale)
-        $out .= "\x0A";
-        // Allineamento centrato
-        $out .= "\x1B\x61\x01";
-        // HRI sotto il barcode (GS H 2)
-        $out .= "\x1D\x48\x02";
-        // Font HRI: A (GS f 0)
-        $out .= "\x1D\x66\x00";
-        // Altezza barcode: 100 punti (GS h 100) — leggibile da scanner
-        $out .= "\x1D\x68" . chr(100);
-        // Larghezza modulo: 3 punti (GS w 3)
-        $out .= "\x1D\x77" . chr(3);
-        // CODE128 — GS k 73 (0x49), lunghezza, prefisso "{B" + dati
-        // "{B" seleziona il Subset B: caratteri ASCII 32-127 (lettere, cifre, punteggiatura)
-        $payload = '{B' . $finalBarcode;
-        $out .= "\x1D\x6B\x49" . chr(strlen($payload)) . $payload;
-        // Feed dopo il barcode
-        $out .= "\x0A\x0A";
-        // Torna all'allineamento sinistro
-        $out .= "\x1B\x61\x00";
-      }
+      $barcodePrinted = true;
+      $emitBarcode();
       continue;
     }
 
-    // ── Header (prima riga non-separatore) ────────────────────────
+    // header
     if (!$printedHeader && $trim !== '' && !preg_match('/^[=\-]+$/', $trim)) {
       $printedHeader = true;
-      $out .= "\x1B\x61\x01"; // centrato
-      $out .= "\x1B\x45\x01"; // grassetto on
-      $out .= "\x1D\x21\x11"; // doppia larghezza + altezza
+      $out .= "\x1B\x61\x01";
+      $out .= "\x1B\x45\x01";
+      $out .= "\x1D\x21\x11";
       $out .= $trim . "\x0A";
-      $out .= "\x1D\x21\x00"; // dimensione normale
-      $out .= "\x1B\x45\x00"; // grassetto off
-      $out .= "\x1B\x61\x00"; // allineamento sinistro
+      $out .= "\x1D\x21\x00";
+      $out .= "\x1B\x45\x00";
+      $out .= "\x1B\x61\x00";
       continue;
     }
 
-    // ── Separatori ────────────────────────────────────────────────
-    if (preg_match('/^=+$/', $trim)) {
-      $out .= str_repeat('=', 42) . "\x0A";
-      continue;
-    }
-    if (preg_match('/^-+$/', $trim)) {
-      $out .= str_repeat('-', 42) . "\x0A";
-      continue;
-    }
+    // separators
+    if (preg_match('/^=+$/', $trim)) { $out .= str_repeat('=', 42) . "\x0A"; continue; }
+    if (preg_match('/^-+$/', $trim)) { $out .= str_repeat('-', 42) . "\x0A"; continue; }
 
     $out .= $line . "\x0A";
   }
 
-  // Feed finale + taglio parziale
-  $out .= "\x0A\x0A";
-  $out .= "\x1D\x56\x01";
+  // ✅ FALLBACK: se manca BARCODE: nel template, stampalo in fondo
+  if (!$barcodePrinted) {
+    $emitBarcode();
+  }
 
+  $out .= "\x0A\x0A";
+  $out .= "\x1D\x56\x01"; // cut
   return $out;
 }
 
 /**
- * Stampa via socket TCP diretto (ESC/POS raw, porta 9100 tipica).
+ * Stampa via socket TCP diretto (porta 9100 tipica).
  */
 function escpos_print_tcp(string $ip, int $port, string $rawBytes): array {
   $fp = @fsockopen($ip, $port, $errno, $errstr, 3.0);
@@ -175,9 +179,6 @@ function escpos_print_tcp(string $ip, int $port, string $rawBytes): array {
 
 /**
  * Stampa via Windows RAW printer (PowerShell + WritePrinter API).
- * Invia i byte ESC/POS direttamente, bypassando il renderer GDI.
- * Questo è l'unico modo affidabile per spedire comandi nativi CODE128
- * a una stampante termica collegata via USB su Windows.
  */
 function escpos_print_windows(string $printerName, string $rawBytes): array {
   $tmpData = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'escpos_' . uniqid('', true) . '.bin';
@@ -187,7 +188,6 @@ function escpos_print_windows(string $printerName, string $rawBytes): array {
     return ['success' => false, 'message' => 'Impossibile scrivere dati ESC/POS su file temporaneo'];
   }
 
-  // PowerShell: legge i byte dal file e li manda alla stampante via WritePrinter ("RAW")
   $ps = <<<'PS'
 param([string]$Printer, [string]$DataFile)
 
@@ -285,13 +285,13 @@ PS;
 }
 
 /**
- * Funzione principale: sceglie TCP (se IP configurato) o Windows RAW.
+ * Funzione principale: sceglie TCP o Windows RAW.
  */
-function escpos_print_txt_with_barcode(string $txt, string $barcodeValue): array {
+function escpos_print_txt_with_barcode(string $txt, string $barcodeValue, bool $showHri = false): array {
   $cfg = escpos_get_printer_config();
-  escpos_debug_log('method=' . $cfg['method'] . ' barcode=' . var_export($barcodeValue, true));
+  escpos_debug_log('method=' . ($cfg['method'] ?? 'none') . ' barcode=' . var_export($barcodeValue, true) . ' hri=' . ($showHri ? '1' : '0'));
 
-  if ($cfg['method'] === 'none') {
+  if (($cfg['method'] ?? 'none') === 'none') {
     return ['success' => false, 'message' => 'Stampante non configurata (impostare IP oppure PRINTER_NAME/PRINTER_SHARE in costanti.txt)'];
   }
 
@@ -299,7 +299,10 @@ function escpos_print_txt_with_barcode(string $txt, string $barcodeValue): array
   if (!$lockFp) return ['success' => false, 'message' => $lockErr];
 
   try {
-    $rawBytes = escpos_build_raw($txt, $barcodeValue);
+    $rawBytes = escpos_build_raw($txt, $barcodeValue, $showHri);
+
+    // debug: salva ultimo raw
+    @file_put_contents(__DIR__ . '/_last_escpos.bin', $rawBytes);
 
     if ($cfg['method'] === 'tcp') {
       $result = escpos_print_tcp($cfg['ip'], $cfg['port'], $rawBytes);
@@ -317,9 +320,9 @@ function escpos_print_txt_with_barcode(string $txt, string $barcodeValue): array
   }
 }
 
-function escpos_print_txt_with_barcode_from_file(string $filePath, string $barcodeValue): array {
+function escpos_print_txt_with_barcode_from_file(string $filePath, string $barcodeValue, bool $showHri = false): array {
   if (!file_exists($filePath)) return ['success' => false, 'message' => 'File non trovato: ' . $filePath];
   $txt = @file_get_contents($filePath);
   if ($txt === false) return ['success' => false, 'message' => 'Impossibile leggere file: ' . $filePath];
-  return escpos_print_txt_with_barcode($txt, $barcodeValue);
+  return escpos_print_txt_with_barcode($txt, $barcodeValue, $showHri);
 }

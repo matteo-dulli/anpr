@@ -13,7 +13,6 @@ register_shutdown_function(function () use (&$response) {
     $e = error_get_last();
     if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
         http_response_code(500);
-        // evita output parziale non-JSON
         if (!headers_sent()) {
             header('Content-Type: application/json; charset=utf-8');
         }
@@ -27,6 +26,7 @@ register_shutdown_function(function () use (&$response) {
 });
 
 try {
+    // --- config robusto ---
     $configPath = dirname(__DIR__) . '/config/config.php';
     if (!file_exists($configPath)) {
         $configPath = __DIR__ . '/../config/config.php';
@@ -57,6 +57,10 @@ try {
         throw new Exception('Costante INVOICE_DIR non definita');
     }
 
+    // ============================================================
+    // ✅ RISTAMPA IDENTICA: usa SEMPRE il file originale
+    // (niente -1/-2/-3)
+    // ============================================================
     $originalFileName = 'RECEIPT_' . $receiptCode . '.txt';
     $originalFilePath = rtrim(INVOICE_DIR, '/\\') . DIRECTORY_SEPARATOR . $originalFileName;
 
@@ -69,74 +73,70 @@ try {
         throw new Exception('Errore lettura file ricevuta: ' . $originalFileName);
     }
 
-    // directory invoice
-    if (!is_dir(INVOICE_DIR)) {
-        if (!@mkdir(INVOICE_DIR, 0777, true)) {
-            throw new Exception('Impossibile creare cartella: ' . INVOICE_DIR);
-        }
-    }
-    if (!is_writable(INVOICE_DIR)) {
-        throw new Exception('Cartella INVOICE_DIR non scrivibile: ' . INVOICE_DIR);
-    }
-
-    // trova primo indice libero
-    $reprintCount = 0;
-    for ($i = 1; $i <= 100; $i++) {
-        $candidate = 'RECEIPT_' . $receiptCode . '-' . $i . '.txt';
-        $candidatePath = rtrim(INVOICE_DIR, '/\\') . DIRECTORY_SEPARATOR . $candidate;
-
-        if (!file_exists($candidatePath)) {
-            $reprintCount = $i;
-            break;
-        }
-    }
-    if ($reprintCount === 0) {
-        throw new Exception('Limite di ristampe raggiunto (100)');
-    }
-
-    $reprintFileName = 'RECEIPT_' . $receiptCode . '-' . $reprintCount . '.txt';
-    $reprintFilePath = rtrim(INVOICE_DIR, '/\\') . DIRECTORY_SEPARATOR . $reprintFileName;
-
-    $bytesWritten = @file_put_contents($reprintFilePath, $fileContent);
-    if ($bytesWritten === false) {
-        throw new Exception('Errore creazione file ristampa ricevuta');
-    }
-
-    // log DB (best-effort)
+    // log DB (best-effort) — salva filename originale e reprint_number=0
     try {
         $stmt = $db->prepare("
             INSERT INTO invoices_printed_reprint
             (receipt_code, passage_id, reprint_number, reprint_filename, reprinted_by)
             VALUES (?, ?, ?, ?, 'web')
         ");
-        $stmt->execute([$receiptCode, $passageId, $reprintCount, $reprintFileName]);
+        $stmt->execute([$receiptCode, $passageId, 0, $originalFileName]);
     } catch (Throwable $dbError) {
         error_log('Receipt reprint DB warning: ' . $dbError->getMessage());
     }
 
-    // stampa ESC/POS: barcode = ticket_code (letto dal TXT)
+    // ============================================================
+    // ✅ Barcode: per ricevuta usa BARCODE: ... dal TXT
+    // fallback: ticket/passaggio
+    // ============================================================
     $ticketCode = '';
-    if (preg_match('/^\s*TICKET:\s*(.+)\s*$/mi', $fileContent, $m)) {
-        $ticketCode = trim($m[1]);
+
+    // 1) formato ticket (alcuni template scrivono "TICKET: xxxx")
+    if (preg_match('/^\s*TICKET\s*:\s*(.+)\s*$/mi', $fileContent, $m)) {
+        $ticketCode = trim((string)$m[1]);
     }
 
+    // 2) formato ricevuta (writeReceiptTxt scrive "BARCODE: xxxx")
+    if ($ticketCode === '' && preg_match('/^\s*BARCODE\s*:\s*(.+)\s*$/mi', $fileContent, $m2)) {
+        $ticketCode = trim((string)$m2[1]);
+    }
+
+    // 3) fallback DB (soprattutto per ricevute passaggi)
+    if ($ticketCode === '' && $passageId) {
+        try {
+            $stmtTc = $db->prepare("SELECT ticket_code FROM passages WHERE id = ? LIMIT 1");
+            $stmtTc->execute([(int)$passageId]);
+            $rTc = $stmtTc->fetch(PDO::FETCH_ASSOC);
+            if ($rTc && !empty($rTc['ticket_code'])) $ticketCode = trim((string)$rTc['ticket_code']);
+        } catch (Throwable $eTc) {
+            error_log('[reprint_receipt] ticket_code fallback DB warning: ' . $eTc->getMessage());
+        }
+    }
+
+    // ============================================================
+    // ✅ Stampa ESC/POS: stampa il file originale (identico)
+    // ============================================================
     if ($ticketCode !== '') {
-        $printResult = escpos_print_txt_with_barcode_from_file($reprintFilePath, $ticketCode);
+        $printResult = escpos_print_txt_with_barcode_from_file($originalFilePath, $ticketCode);
         if (!$printResult['success']) {
-            error_log('[reprint_receipt] PRINT WARNING: ' . $printResult['message']);
+            error_log('[reprint_receipt] PRINT WARNING: ' . ($printResult['message'] ?? 'unknown'));
         }
     } else {
-        $printResult = ['success' => false, 'message' => 'Ticket_code non trovato nella ricevuta: barcode non stampato'];
+        $printResult = ['success' => false, 'message' => 'Codice barcode non trovato: barcode non stampato'];
         error_log('[reprint_receipt] PRINT WARNING: ' . $printResult['message']);
     }
 
     $response['success'] = true;
-    $response['message'] = '✅ Ricevuta ristampata: ' . $reprintFileName;
+    $response['message'] = '✅ Ricevuta ristampata: ' . $originalFileName;
     $response['data'] = [
-        'reprint_filename' => $reprintFileName,
-        'reprint_count' => $reprintCount,
+        'reprint_filename' => $originalFileName,
+        'reprint_count' => 0,
         'receipt_code' => $receiptCode,
-       //// 'download_url' => (defined('API_BASE') ? API_BASE : '/anpr/api') . '/download_invoice.php?file=' . rawurlencode($reprintFileName),
+
+        // ✅ utile per eventuale download/preview browser (identico)
+        'download_url' => (defined('API_BASE') ? API_BASE : '/anpr/api')
+            . '/download_invoice.php?file=' . rawurlencode($originalFileName),
+
         'printer' => $printResult,
     ];
 

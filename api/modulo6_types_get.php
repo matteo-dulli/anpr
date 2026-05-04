@@ -27,10 +27,24 @@ try {
         // header blocchi: "# ...."
         if (strpos($raw, '#') === 0) {
             // ✅ NEW: entra nel blocco AUTORIZZATI
-            if (mb_strtoupper($raw, 'UTF-8') === '# AUTORIZZATI') {
-                $inBlock = true;
-                continue;
-            }
+            // header blocchi: "# ...."
+if (strpos($raw, '#') === 0) {
+    // ✅ FIX: niente mb_strtoupper (non sempre disponibile)
+    $hdr = trim(strtoupper($raw));
+
+    // entra nel blocco AUTORIZZATI
+    // (nota: nel tuo costanti.txt è "# AUTORIZZATI")
+    if ($hdr === '# AUTORIZZATI') {
+        $inBlock = true;
+        continue;
+    }
+
+    // se ero nel blocco e trovo un altro header, esco
+    if ($inBlock) break;
+
+    // altri header -> ignora
+    continue;
+}
 
             // ✅ NEW: se ero nel blocco e trovo un altro header, esco
             if ($inBlock) break;

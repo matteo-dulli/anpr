@@ -46,10 +46,10 @@ Abbonamento 6 = Definito
 
 # AUTORIZZATI
 1 = Residente
-2 = Autocarro 
-3 = Forza dell'ordine 
+2 = Autocarro
+3 = Forza dell'ordine
 4 = Emergenza
-5 = Manutentori 
+5 = Manutentori
 
 # TESSERESCALARE
 TestoF1S = Auto piccola
@@ -71,13 +71,17 @@ PrezzoF5S = 7.00
 # LIMITE GIORNI PRESENZA
 LIMITE_GIORNI_PRESENZA = 6
 
+# TEMPOCURSORE
+TEMPOCURSORE_SEC = 30
+
 # STAMPANTE TERMICA
 IP =
 PORT =
 USB =
 USB_SHARE =
-PRINTER_NAME = POS-80-Series
-PRINTER_SHARE = \\PC-TICKET\POS-80
+PRINTER_NAME = POS-80
+////PRINTER_NAME = POS-80-Series
+PRINTER_SHARE = \\PC-TICKET\pos-80
 BARCODE = CODE128
 BARCODE_FONT =
 

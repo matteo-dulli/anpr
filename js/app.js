@@ -54,6 +54,7 @@ let connectionStartTime = new Date();
 window.currentUM = 0;
 
 // ================== RICERCA TICKET / BARCODE ==================
+// ================== RICERCA TICKET / BARCODE ==================
 async function handleTicketSearch() {
   const searchTicketInput = document.getElementById('searchTicketInfo');
   const rawQuery = searchTicketInput ? searchTicketInput.value : '';
@@ -126,6 +127,49 @@ async function handleTicketSearch() {
       if (results.length === 0) {
         showToast('⚠️ Nessun risultato', 'warning', 3000);
         return;
+      }
+
+      // ✅ Se risultato UNICO (tipico del codice secondario univoco), apri subito senza click
+      if (results.length === 1) {
+        const row = results[0];
+
+        // Ricerca non-full-code: attiva UM
+        window.currentUM = 1;
+
+        try {
+          // Apri scheda
+          if (Number(row.is_passage) === 1 && row.passage_id) {
+            if (typeof selectPassage !== 'function') {
+              showToast('⚠️ Gestione passaggi non disponibile in questa versione', 'warning', 4000);
+              if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = false;
+              return;
+            }
+
+            if (typeof updatePassagesList === 'function' || typeof loadPassages === 'function') {
+              if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = true;
+            } else {
+              if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = false;
+            }
+
+            await selectPassage(parseInt(row.passage_id, 10));
+          } else if (row.id) {
+            if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = false;
+            await selectPlate(parseInt(row.id, 10));
+          } else {
+            showToast('⚠️ Risultato non apribile', 'warning', 3000);
+            return;
+          }
+
+          // pulizia input dopo selezione
+          if (searchTicketInput) searchTicketInput.value = '';
+          hideTicketSearchDropdown();
+          return;
+        } catch (e) {
+          console.error('single result open error:', e);
+          if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = false;
+          showToast('❌ Errore apertura scheda', 'error', 4000);
+          return;
+        }
       }
 
       const dd = ensureTicketSearchDropdown();
@@ -210,10 +254,7 @@ async function handleTicketSearch() {
     // ==========================================================
     // OLD: ricerca solo su search_code.php (esiste ancora per codici completi)
     // ==========================================================
-
-    // Se è chiaramente un codice completo, facciamo exact.
-    // Altrimenti possiamo comunque fare exact (utile per barcode scanner che invia Enter).
-    const mode = (isFullTicketCode(query) || isFullReceiptCode(query)) ? 'exact' : 'exact';
+    const mode = 'exact';
 
     const url = `${API_BASE}/search_code.php?q=${encodeURIComponent(query)}&mode=${mode}&limit=10&t=${Date.now()}`;
     const resp = await fetch(url, { cache: 'no-store' });
@@ -277,13 +318,59 @@ async function handleTicketSearch() {
         }
       });
     });
+
   } catch (e) {
     console.error('handleTicketSearch error:', e);
     showToast('❌ Errore ricerca: ' + (e.message || e), 'error', 4000);
     if (typeof selectedIsPassage !== 'undefined') selectedIsPassage = false;
   }
 }
+// ================== AUTO-SEARCH CODICE SECONDARIO (5 char) ==================
+(function setupSecondaryCodeAutoSearch() {
+  const input = document.getElementById('searchTicketInfo');
+  if (!input) return;
 
+  let debounceTimer = null;
+  let lastTriggered = ''; // evita doppio trigger su Enter + input
+
+  const triggerSearch = async () => {
+    const q = normalizeSearchInput(input.value);
+    if (!q) return;
+
+    // evita richieste duplicate con lo stesso valore
+    if (q === lastTriggered) return;
+    lastTriggered = q;
+
+    await handleTicketSearch();
+  };
+
+  // Scanner: di solito invia ENTER a fine scansione
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      triggerSearch();
+    }
+  });
+
+  // Digitazione/incolla: parte appena sono 5 caratteri (debounce breve)
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+
+    const q = normalizeSearchInput(input.value);
+
+    // reset se l'utente cancella/modifica
+    if (q.length !== 5) {
+      // permette di ritentare quando tornerà a 5
+      lastTriggered = '';
+      return;
+    }
+
+    // se sono esattamente 5 (codice secondario), avvia subito
+    debounceTimer = setTimeout(() => {
+      triggerSearch();
+    }, 80);
+  });
+})();
   // ==========================================================
   // OLD: pulizia subito dell'input
   // ⚠️ Se pulisci subito, quando dropdown è aperto l’utente non vede cosa ha digitato.
@@ -1516,7 +1603,65 @@ function startHeaderClock() {
   tick();
   setInterval(tick, 30 * 1000);
 }
+// ================== AUTO-FOCUS SU RICERCA DOPO INATTIVITÀ (da costanti.txt) ==================
+(function setupIdleFocusOnSearch() {
+  const INPUT_ID = 'searchTicketInfo';
 
+  // Legge da variabile globale (da costanti.txt lato server)
+  const secFromGlobals =
+    Number(window?.TEMPOCURSORE_SEC) ||
+    Number(window?.COSTANTI?.TEMPOCURSORE_SEC) ||
+    Number(window?.COSTANTI?.tempocursore_sec);
+
+  const IDLE_MS = (Number.isFinite(secFromGlobals) && secFromGlobals > 0 ? secFromGlobals : 30) * 1000;
+
+  let idleTimer = null;
+
+  const focusSearch = () => {
+    const el = document.getElementById(INPUT_ID);
+    if (!el) return;
+
+    // solo focus/cursore nell’area di ricerca (come richiesto)
+    el.focus({ preventScroll: true });
+    try { el.select(); } catch (_) {}
+  };
+
+  const resetIdle = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(focusSearch, IDLE_MS);
+  };
+
+  // inattività = niente mouse/tastiera (aggiungo touch/wheel per completezza)
+  const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'];
+  events.forEach(evt => window.addEventListener(evt, resetIdle, { passive: true }));
+
+  resetIdle();
+})();
+function printHiddenUrl(url) {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+
+  iframe.onload = () => {
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } finally {
+        setTimeout(() => iframe.remove(), 3000);
+      }
+    }, 150);
+  };
+
+  iframe.src = url;
+  document.body.appendChild(iframe);
+}
 // IMPORTANT: assicurati che sia registrata UNA SOLA VOLTA
 document.addEventListener('DOMContentLoaded', startHeaderClock);
 

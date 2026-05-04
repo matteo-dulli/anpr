@@ -1929,6 +1929,9 @@ window.renderPassageDetails = function renderPassageDetails(data, cassaMaybe) {
   const elett  = Number(cassa?.PpayE || 0) === 1;
   const invoiceCode = (cassa && cassa.invoice_code) ? String(cassa.invoice_code).trim() : '';
 
+  // ✅ FIX: se c’è un ticket, la fascia NON deve essere modificabile
+  const hasTicket = !!String(passage.ticket_code || cassa.ticket_code || '').trim();
+
   // Durata (giorni/ore/min) tra ingresso e uscita “visibile”
   let giorni = 0, ore = 0, min = 0;
   if (dtIn && uscitaData && uscitaOra) {
@@ -1942,7 +1945,8 @@ window.renderPassageDetails = function renderPassageDetails(data, cassaMaybe) {
   }
 
   function fieldLock(attr) {
-    return invoiceCode && !["annullato","motivo","paid","pay_cash","pay_electronic"].includes(attr)
+    const mustLock = !!invoiceCode || hasTicket;
+    return mustLock && !["annullato","motivo","paid","pay_cash","pay_electronic"].includes(attr)
       ? 'readonly disabled'
       : '';
   }
