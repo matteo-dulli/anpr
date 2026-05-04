@@ -170,7 +170,7 @@
         <label>&nbsp;</label>
         <div class="search-buttons-wrapper">
           <button class="btn btn-small" id="searchBtn" onclick="handleTicketSearch()">🔍 Cerca</button>
-          <button class="btn btn-small" id="resetBtn" onclick="location.reload(true)">↺ Reset</button>
+          <button class="btn btn-small" id="resetBtn" data-no-focus onclick="location.reload(true)">↺ Reset</button>
         </div>
       </div>
 

@@ -1646,7 +1646,7 @@ function startHeaderClock() {
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
-    if (btn.id === 'resetBtn') return;
+    if (btn.hasAttribute('data-no-focus')) return;
     focusSearch();
   });
 
