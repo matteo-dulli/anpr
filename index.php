@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lettura e Gestione Targhe</title>
+  <title>Gestione SMART Autorimessa</title>
   <link rel="stylesheet" href="css/style.css">
 
   <!-- ✅ BOOT CONFIG (sempre valido, anche senza PHP) -->
@@ -17,69 +17,56 @@
     window.ANPR_THUMB_Q = window.ANPR_THUMB_Q || 70;
   </script>
 
-  <!-- ✅ PATCH: TEMPOCURSORE da costanti.txt + autofocus ricerca dopo inattività -->
+  <!-- ✅ PATCH: autofocus su Ricerca dopo inattività (30s) - SOLO HEAD -->
   <script>
-  (function () {
-    async function loadTempoCursoreSec() {
-      // fallback se non disponibile
-      var fallbackSec = 30;
+  (function setupIdleFocusOnSearch() {
+    'use strict';
 
-      try {
-        // Endpoint atteso: deve restituire JSON con TEMPOCURSORE_SEC
-        // Esempio payload accettato:
-        // { success:true, data:{ TEMPOCURSORE_SEC: 30, ... } }
-        // oppure { TEMPOCURSORE_SEC: 30, ... }
-        var url = (window.API_BASE || '/anpr/api') + '/get_costanti.php?t=' + Date.now();
-        var r = await fetch(url, { cache: 'no-store' });
-        if (!r.ok) return fallbackSec;
+    var INPUT_ID = 'searchTicketInfo';
+    var IDLE_MS = 30 * 1000; // 30 secondi
 
-        var j = await r.json();
+    var timer = null;
 
-        var data = (j && typeof j === 'object')
-          ? (j.data && typeof j.data === 'object' ? j.data : j)
-          : null;
+    function focusSearch() {
+      var el = document.getElementById(INPUT_ID);
+      if (!el) return;
 
-        var sec = data && data.TEMPOCURSORE_SEC != null ? Number(data.TEMPOCURSORE_SEC) : NaN;
-        if (!Number.isFinite(sec) || sec <= 0) return fallbackSec;
-
-        // esponi anche globalmente per debug/uso in app.js
-        window.TEMPOCURSORE_SEC = sec;
-        return sec;
-      } catch (e) {
-        return fallbackSec;
+      // non rubare focus se l’utente sta già scrivendo in un campo
+      var ae = document.activeElement;
+      if (ae && ae !== document.body) {
+        var tag = (ae.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if (ae.isContentEditable) return;
       }
+
+      el.focus({ preventScroll: true });
+      try { el.select(); } catch (_) {}
     }
 
-    function setupIdleFocus(sec) {
-      var INPUT_ID = 'searchTicketInfo';
-      var IDLE_MS = Math.max(1, Number(sec) || 30) * 1000;
+    function reset() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(focusSearch, IDLE_MS);
+    }
 
-      var timer = null;
-
-      function focusSearch() {
-        var el = document.getElementById(INPUT_ID);
-        if (!el) return;
-        el.focus({ preventScroll: true });
-        try { el.select(); } catch (_) {}
-      }
-
-      function reset() {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(focusSearch, IDLE_MS);
-      }
-
-      // inattività utente (mouse+tastiera) + anche touch/scroll
+    function bind() {
+      // eventi che contano come attività utente
       ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'].forEach(function (evt) {
         window.addEventListener(evt, reset, { passive: true });
+      });
+
+      // quando torni sulla tab, riparti
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) reset();
       });
 
       reset();
     }
 
-    document.addEventListener('DOMContentLoaded', async function () {
-      var sec = await loadTempoCursoreSec();
-      setupIdleFocus(sec);
-    });
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bind);
+    } else {
+      bind();
+    }
   })();
   </script>
   <!-- ✅ FINE PATCH -->
@@ -89,7 +76,7 @@
 <div class="container">
   <!-- HEADER -->
   <div class="header">
-    <h1>🚗 Gestione SMART Autorimessa - con ANPR</h1>
+    <h1>🚗 Gestione SMART Autorimessa </h1>
 
     <div class="header-center">
       <span id="headerDateTime" class="header-datetime"></span>
@@ -99,7 +86,7 @@
       <!-- PRESENZE TOPBAR (NUOVO) -->
       <div id="presenzeTopbar" style="display:flex;align-items:center;gap:10px;margin-right:14px;">
         <div style="font-weight:700;font-size:16px;white-space:nowrap;">
-          Presenze: <span id="presentiCounter">…</span>
+          Presenti: <span id="presentiCounter">…</span>
         </div>
 
         <select id="presentiDays"
@@ -235,7 +222,116 @@
 <script src="/anpr/js/utils.js"></script>
 <script src="/anpr/js/ui.js"></script>
 
-<!-- ... TUTTO IL RESTO INVARIATO ... -->
+<!-- ===========================================================
+     ✅ PATCH (AGGIUNTA): helper per aprire il popup con URL full
+     - NON serve trovare openImageModal in app.js
+     - rende disponibile openImageModalUrl() a details.js/app.js
+     - mantiene il popup esistente (#imageModal)
+=========================================================== -->
+<script>
+(function () {
+  // Fallback openImageModal se non esiste già (non sovrascrive se presente)
+  if (typeof window.openImageModal !== 'function') {
+    window.openImageModal = function (imgEl, caption) {
+      var modal = document.getElementById('imageModal');
+      var modalImg = document.getElementById('modalImage');
+      var modalCap = document.getElementById('modalCaption');
+      var closeBtn = document.querySelector('#imageModal .modal-close');
+      if (!modal || !modalImg) return;
+
+      modalImg.src = imgEl && imgEl.src ? imgEl.src : '';
+      if (modalCap) modalCap.textContent = caption || '';
+      modal.style.display = 'block';
+
+      function close() { modal.style.display = 'none'; }
+      if (closeBtn) closeBtn.onclick = close;
+      modal.onclick = function (e) { if (e.target === modal) close(); };
+      document.onkeydown = function (e) { if (e.key === 'Escape') close(); };
+    };
+  }
+
+  // Helper: apre il modal caricando PRIMA l'URL full (w=0) e poi passando l'immagine a openImageModal
+  window.openImageModalUrl = function (url, caption) {
+    var img = new Image();
+    img.onload = function () { window.openImageModal(img, caption); };
+    img.onerror = function () {
+      if (typeof window.showToast === 'function') window.showToast('❌ Immagine non disponibile', 'error', 2500);
+      else console.error('Immagine non disponibile:', url);
+    };
+    img.src = url;
+  };
+})();
+</script>
+<!-- ======================= FINE PATCH ======================= -->
+
+<script src="/anpr/js/modulo1.js"></script>
+<script src="/anpr/js/modulo2.js"></script>
+<script src="/anpr/js/modulo3.js"></script>
+<script src="/anpr/js/modulo4.js"></script>
+<script src="/anpr/js/modulo5.js"></script>
+<script src="/anpr/js/modulo6.js"></script>
+
+<script>
+/**
+ * ✅ PATCH COMPATIBILITÀ (NON RIMUOVERE)
+ * Serve a evitare errori in details.js quando "obj" non è definito.
+ * Prova a ricavare plateId / passageId dal pannello dettagli (quando presente).
+ */
+(function () {
+  window.obj = window.obj || {};
+
+  function readIdsFromDOM() {
+    var root = document.getElementById('details-root');
+    if (root && root.dataset) {
+      if (!window.PLATE_ID && root.dataset.plateId) window.PLATE_ID = parseInt(root.dataset.plateId, 10) || window.PLATE_ID;
+      if (!window.PASSAGE_ID && root.dataset.passageId) window.PASSAGE_ID = parseInt(root.dataset.passageId, 10) || window.PASSAGE_ID;
+      if (!window.obj.id && root.dataset.id) window.obj.id = parseInt(root.dataset.id, 10) || window.obj.id;
+    }
+
+    var panel = document.getElementById('detailsPanel');
+    if (!panel) return;
+
+    var plateEl =
+      panel.querySelector('input[name="plate_id"]') ||
+      panel.querySelector('#plate_id') ||
+      panel.querySelector('[data-plate-id]');
+
+    var passageEl =
+      panel.querySelector('input[name="passage_id"]') ||
+      panel.querySelector('#passage_id') ||
+      panel.querySelector('[data-passage-id]');
+
+    var plateId = null, passageId = null;
+
+    if (plateEl) {
+      plateId = plateEl.value || plateEl.getAttribute('data-plate-id');
+      plateId = plateId ? (parseInt(plateId, 10) || null) : null;
+    }
+    if (passageEl) {
+      passageId = passageEl.value || passageEl.getAttribute('data-passage-id');
+      passageId = passageId ? (parseInt(passageId, 10) || null) : null;
+    }
+
+    if (!window.PLATE_ID && plateId) window.PLATE_ID = plateId;
+    if (!window.PASSAGE_ID && passageId) window.PASSAGE_ID = passageId;
+
+    if (!window.obj.id) window.obj.id = window.PASSAGE_ID || window.PLATE_ID || window.obj.id;
+    window.obj.plate_id = window.obj.plate_id || window.PLATE_ID || null;
+    window.obj.passage_id = window.obj.passage_id || window.PASSAGE_ID || null;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    readIdsFromDOM();
+    setTimeout(readIdsFromDOM, 250);
+    setTimeout(readIdsFromDOM, 800);
+  });
+
+  window.ANPR_syncDetailsIds = readIdsFromDOM;
+})();
+</script>
+
+<!-- ✅ NUOVO: Sistema Turni Operatori -->
+<script src="/anpr/js/turni.js"></script>
 
 <script src="/anpr/js/details.js"></script>
 <script src="/anpr/js/plate-management.js"></script>
@@ -251,6 +347,7 @@
       return r.json();
     }
 
+    // ✅ parsing days che supporta 0 (Totale)
     function getSelectedDays(sel) {
       const v = parseInt((sel && sel.value != null ? sel.value : '0'), 10);
       if (Number.isNaN(v)) return 0;
@@ -267,9 +364,11 @@
       const counter = document.getElementById('presentiCounter');
       if (!sel || !counter) return;
 
+      // ✅ carica di default Totale (days=0)
       const j = await fetchPresenti(0);
       if (!j.success) return;
 
+      // popola select
       sel.innerHTML = '';
       (j.data.options || []).forEach(opt => {
         const o = document.createElement('option');
@@ -278,17 +377,20 @@
         sel.appendChild(o);
       });
 
+      // ✅ default selezionato: Totale
       sel.value = '0';
       counter.textContent = j.data.presenti ?? '-';
 
+      // onchange
       sel.addEventListener('change', async () => {
-        const days = getSelectedDays(sel);
+        const days = getSelectedDays(sel); // ✅ può essere 0
         const jj = await fetchPresenti(days);
         if (jj.success) counter.textContent = jj.data.presenti ?? '-';
       });
 
+      // refresh periodico
       setInterval(async () => {
-        const days = getSelectedDays(sel);
+        const days = getSelectedDays(sel); // ✅ può essere 0
         const jj = await fetchPresenti(days);
         if (jj.success) counter.textContent = jj.data.presenti ?? '-';
       }, 15000);

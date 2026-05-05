@@ -1,5 +1,18 @@
 console.log('📝 details.js caricato (dinamico e lock post-ricevuta)');
+function _turnoChiusoBlock(msg) {
+  // se non esiste turni-manager, non bloccare
+  if (typeof window.isTurnoAttivo !== 'function') return false;
 
+  if (!window.isTurnoAttivo()) {
+    if (typeof showToast === 'function') {
+      showToast(msg || '❌ Turno chiuso: operazione non consentita', 'error', 3000);
+    } else {
+      alert(msg || 'Turno chiuso: operazione non consentita');
+    }
+    return true;
+  }
+  return false;
+}
 var selectedPassageId = null;
 
 // Helper per estrarre la parte finale del codice ticket (dopo l'ultimo '-').
@@ -698,7 +711,7 @@ if ((!entryDate || !entryTime) && plate.date_detected) {
           <button type="button" onclick="calcolaUscitaPerTarga()" class="btn-small" style="background:#667eea; color:white;" ${invoiceCode ? "disabled" : ""}>🧮 Calcola</button>
           ${!invoiceCode ? `<button type="button" onclick="emettiRicevutaTarga()" class="btn-small" style="background:#22c55e;">📄 Ricevuta</button>` : ""}
           ${invoiceCode ? `<button type="button" onclick="ristampaRicevutaTarga('${invoiceCode}')" class="btn-small" style="background:#f59e42;">🖨️ Ristampa</button>` : ""}
-        </div>
+		</div>
 
         <div style="display:flex;gap:18px;margin-top:12px;align-items:center;">
           <div class="form-group" style="min-width:70px;">
@@ -713,6 +726,7 @@ if ((!entryDate || !entryTime) && plate.date_detected) {
             <label>Min</label>
             <input type="number" id="minuti" value="0" readonly>
           </div>
+		  <div id="ioNoteIndicator" style="margin-left:inherit;"></div>
         </div>
       </div>
     </div>
@@ -806,7 +820,6 @@ const plateCtx = {
   ticket_code: plate.ticket_code || plate.ticket_code_printed || plate.Tticket_code || ''
 };
 
-// ✅ NEW: mount moduli (solo se script caricati)
 setTimeout(() => {
   try {
     if (window.Modulo1 && typeof window.Modulo1.mount === 'function') {
@@ -830,6 +843,67 @@ setTimeout(() => {
   } catch (e) {
     console.error('Errore mount moduli:', e);
   }
+
+  // ✅ indicatore note (giallo) + click apre modulo note
+  async function updateNoteIndicator(ctx) {
+    const el = document.getElementById('ioNoteIndicator');
+    if (!el) return;
+
+    const plateId = ctx?.plate_id;
+    const ticketCode = (ctx?.ticket_code || '').toString().trim();
+
+    if (!plateId) { el.innerHTML = ''; return; }
+
+    try {
+      const url =
+        `${API_BASE}/modulo3_notes_get.php` +
+        `?plate_id=${encodeURIComponent(plateId)}` +
+        `&ticket_code=${encodeURIComponent(ticketCode)}` +
+        `&t=${Date.now()}`;
+
+      const r = await fetch(url, { cache: 'no-store' });
+      const j = await r.json();
+
+      const note = (j?.data?.note || '').toString();
+
+      if (!note.trim()) { el.innerHTML = ''; return; }
+
+      el.innerHTML = `
+        <button type="button" id="btnOpenNote" title="Note presenti" style="
+          width:18px;height:18px;border-radius:50%; float: left;;
+          border:0;background:#facc15;cursor:pointer;
+          box-shadow:0 0 0 2px #11111122;
+        "></button>
+      `;
+
+      document.getElementById('btnOpenNote')?.addEventListener('click', () => {
+        // apri accordion note
+        const headers = Array.from(document.querySelectorAll('.accordion-header'));
+        const h = headers.find(x => (x.textContent || '').includes('Note ingresso/uscita'));
+        if (h) {
+          const section = h.closest('.accordion-section');
+          const content = section?.querySelector('.accordion-content');
+          if (content) content.style.display = 'block';
+          const icon = h.querySelector('.accordion-icon');
+          if (icon) icon.textContent = '▼';
+          section?.classList.add('open');
+        }
+        setTimeout(() => document.getElementById('m3_note')?.focus(), 50);
+      });
+    } catch (e) {
+      // non bloccare UI se fallisce la get
+      el.innerHTML = '';
+      console.warn('updateNoteIndicator error:', e);
+    }
+  }
+
+  // ✅ CHIAMATA: serve davvero
+  updateNoteIndicator(plateCtx);
+
+  // ✅ (opzionale ma consigliato) aggiorna l’indicatore quando l’utente salva
+  // perché handleSave salva anche Modulo3.
+  window.__updateNoteIndicator = () => updateNoteIndicator(plateCtx);
+
 }, 50);
 
 
@@ -930,6 +1004,12 @@ window.renderPlateDetails = renderDetails;
 // ================== FINE PATCHED RENDERDETAILS ===================
 
 async function emitReceiptPassage() {
+  // ✅ BLOCCO SE TURNO CHIUSO (consenti solo ristampe)
+  if (typeof window.isTurnoAttivo === 'function' && !window.isTurnoAttivo()) {
+    showToast('❌ Turno chiuso: operazione non consentita (solo ristampe).', 'error', 3500);
+    return;
+  }
+
   const passageId = selectedPassageId;
   const price = parseFloat(document.getElementById('passagePrice')?.value || '0');
 
@@ -2176,7 +2256,7 @@ window.savePlateCassaStatusIfPossible = async function () {
 async function savePlateModulesIfPresent() {
   const plateId = parseInt(document.getElementById('plateId')?.value || '0', 10);
   const plateNumber = document.getElementById('plateNumber')?.value || '';
-
+////if (window.__updateNoteIndicator) window.__updateNoteIndicator();
   if (!plateId) return { success: false, message: 'plateId mancante (moduli)' };
 
   const results = [];
@@ -2461,6 +2541,13 @@ window.handleSave = async function () {
   const type = (typeof getOpenSheetType === 'function') ? getOpenSheetType() : 'unknown';
 
   try {
+    // ✅ BLOCCO SE TURNO CHIUSO: il salvataggio non deve funzionare
+    // (devono restare attive solo le ristampe, che NON passano da handleSave)
+    if (typeof window.isTurnoAttivo === 'function' && !window.isTurnoAttivo()) {
+      showToast('❌ Turno chiuso: non puoi salvare/modificare (solo ristampe).', 'error', 3500);
+      return;
+    }
+
     // ===== PASSAGGIO =====
     if (type === 'passage') {
       if (typeof savePassageDataNew !== 'function') {
@@ -2608,6 +2695,12 @@ if (typeof window.renderPlateDetails !== 'function') {
 
 async function emettiRicevutaTarga() {
   try {
+    // ✅ BLOCCO SE TURNO CHIUSO (consenti solo ristampe)
+    if (typeof window.isTurnoAttivo === 'function' && !window.isTurnoAttivo()) {
+      showToast('❌ Turno chiuso: operazione non consentita (solo ristampe).', 'error', 3500);
+      return;
+    }
+
     const plateId = parseInt(document.getElementById('plateId')?.value || '0', 10);
     const invoiceCode = (document.getElementById('invoiceCodeHidden')?.value || '').trim();
 

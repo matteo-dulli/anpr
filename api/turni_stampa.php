@@ -2,15 +2,20 @@
 /**
  * turni_stampa.php
  * Serve il file .txt del turno selezionato per stampa o download
+ *
  * GET params:
  *   id      → id della sessione in turni_sessioni
- *   action  → 'print' (apre HTML stampabile) | 'download' (scarica .txt)
+ *   action  → 'print'    (apre HTML stampabile)
+ *          | 'download' (scarica .txt)
+ *          | 'thermal'  (✅ stampa diretta su termica ESC/POS, ritorna JSON)
  */
 date_default_timezone_set('Europe/Rome');
-require_once __DIR__ . '/../config/config.php';
 
-$id     = isset($_GET['id'])     ? (int)$_GET['id']              : 0;
-$action = isset($_GET['action']) ? trim($_GET['action'])          : 'print';
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/escpos.php';
+
+$id     = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$action = isset($_GET['action']) ? trim($_GET['action']) : 'print';
 
 if (!$id) {
     http_response_code(400);
@@ -44,15 +49,25 @@ try {
     $fileFull  = $fileName ? $turniDir . '/' . $fileName : null;
 
     // ----------------------------------------------------------------
-    // Se il file .txt esiste, usalo direttamente
+    // Se il file .txt esiste, usalo direttamente (✅ normalizza UTF-8)
     // ----------------------------------------------------------------
     $contenuto = null;
     if ($fileFull && file_exists($fileFull)) {
         $contenuto = file_get_contents($fileFull);
+
+        // ✅ escpos.php si aspetta UTF-8. Se il file è ANSI/Windows-1252 lo convertiamo.
+        if ($contenuto !== false && $contenuto !== null && $contenuto !== '') {
+            if (function_exists('mb_check_encoding') && !mb_check_encoding($contenuto, 'UTF-8')) {
+                $tmp = @iconv('Windows-1252', 'UTF-8//IGNORE', $contenuto);
+                if ($tmp !== false && $tmp !== null && $tmp !== '') {
+                    $contenuto = $tmp;
+                }
+            }
+        }
     }
 
     // ----------------------------------------------------------------
-    // Altrimenti, genera il contenuto al volo dal DB
+    // Altrimenti, genera il contenuto al volo dal DB (NO separator, € OK)
     // ----------------------------------------------------------------
     if (!$contenuto) {
         $numFormatted = str_pad($sessione['numero_turno'], 3, '0', STR_PAD_LEFT);
@@ -60,42 +75,59 @@ try {
         $oraInizio    = $sessione['inizio'] ? date('H:i:s', strtotime($sessione['inizio'])) : '--:--:--';
         $oraFine      = $sessione['fine']   ? date('H:i:s', strtotime($sessione['fine']))   : '--:--:--';
 
-        $c  = "═══════════════════════════════════════════\n";
-        $c .= "RIEPILOGO TURNO N. {$numFormatted}\n";
+        $c  = "RIEPILOGO TURNO N. {$numFormatted}\n";
         $c .= "Data:          {$dataFmt}\n";
         $c .= "Operatore:     {$sessione['operatore_cod']}\n";
         $c .= "Ora inizio:    {$oraInizio}\n";
         $c .= "Ora chiusura:  {$oraFine}\n";
         $c .= "\n";
+
         $c .= "STATISTICHE EMISSIONI:\n";
-        $c .= "─────────────────────\n";
-        $c .= sprintf("Ticket emessi totale:  %5d\n", (int)$sessione['ticket_emessi']);
-        $c .= sprintf("Ticket annullati:      %5d\n", (int)$sessione['ticket_annullati']);
-        $c .= sprintf("Ricevute emesse:       %5d\n", (int)$sessione['ricevute']);
+        $c .= sprintf("Ticket emessi totale: %d\n", (int)$sessione['ticket_emessi']);
+        $c .= sprintf("Ticket annullati:     %d\n", (int)$sessione['ticket_annullati']);
+        $c .= sprintf("Ricevute emesse:      %d\n", (int)$sessione['ricevute']);
         $c .= "\n";
+
         $c .= "PAGAMENTI:\n";
-        $c .= "──────────\n";
-        $c .= sprintf("Contante:    € %10s\n", number_format((float)$sessione['importo_contante'], 2, ',', '.'));
-        $c .= sprintf("Online:      € %10s\n", number_format((float)$sessione['importo_online'],   2, ',', '.'));
-        $c .= sprintf("TOTALE:      € %10s\n", number_format((float)$sessione['importo_totale'],   2, ',', '.'));
+        $c .= sprintf("Contante: € %s\n", number_format((float)$sessione['importo_contante'], 2, ',', '.'));
+        $c .= sprintf("Online:   € %s\n", number_format((float)$sessione['importo_online'],   2, ',', '.'));
+        $c .= sprintf("TOTALE:   € %s\n", number_format((float)$sessione['importo_totale'],   2, ',', '.'));
         $c .= "\n";
-        $c .= "═══════════════════════════════════════════\n";
 
         $contenuto = $c;
-        // Salva il file per le prossime volte
+
         if (!is_dir($turniDir)) {
             @mkdir($turniDir, 0755, true);
         }
         if ($fileName) {
-            @file_put_contents($turniDir . '/' . $fileName, $c);
+            @file_put_contents($turniDir . '/' . $fileName, $c); // UTF-8
         }
     }
 
     // ----------------------------------------------------------------
-    // Serve il contenuto
+    // ✅ STAMPA TERMICA DIRETTA - ritorna JSON
+    // ----------------------------------------------------------------
+    if ($action === 'thermal') {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $printRes = escpos_print_txt_with_barcode((string)$contenuto, '', true);
+
+        echo json_encode([
+            'success' => (bool)($printRes['success'] ?? false),
+            'message' => (string)($printRes['message'] ?? ''),
+            'data' => [
+                'id'           => (int)$id,
+                'numero_turno' => (int)($sessione['numero_turno'] ?? 0),
+                'file_path'    => (string)($sessione['file_path'] ?? '')
+            ]
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        exit;
+    }
+
+    // ----------------------------------------------------------------
+    // Download del file .txt
     // ----------------------------------------------------------------
     if ($action === 'download') {
-        // Download del file .txt
         $dlName = $fileName ?: ('turno_' . str_pad($sessione['numero_turno'], 3, '0', STR_PAD_LEFT) . '.txt');
         header('Content-Type: text/plain; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $dlName . '"');
@@ -103,9 +135,11 @@ try {
         exit;
     }
 
-    // Altrimenti: mostra HTML stampabile
-    $numFormatted = str_pad($sessione['numero_turno'], 3, '0', STR_PAD_LEFT);
-    $contenutoHtml = nl2br(htmlspecialchars($contenuto, ENT_QUOTES, 'UTF-8'));
+    // ----------------------------------------------------------------
+    // HTML stampabile (browser)
+    // ----------------------------------------------------------------
+    $numFormatted  = str_pad($sessione['numero_turno'], 3, '0', STR_PAD_LEFT);
+    $contenutoHtml = nl2br(htmlspecialchars((string)$contenuto, ENT_QUOTES, 'UTF-8'));
 
     header('Content-Type: text/html; charset=utf-8');
     echo '<!DOCTYPE html>

@@ -1,18 +1,10 @@
 /**
  * 🔁 TURNI MANAGER - Sistema gestione turni operatori ANPR
- *
- * Funzionalità:
- *  - Pulsante "Apri Turno" con dropdown operatori
- *  - Pulsante "Stampa Turni" con dropdown turni stampabili
- *  - Badge operatore (visibile con turno aperto)
- *  - window.turnoAttivo (true/false)
- *  - window.isTurnoAttivo() → boolean
- *  - Blocco azioni quando turno è chiuso
- */
+  */
 
 (function () {
   'use strict';
-
+window.TURNI_MANAGER_NO_UI = window.TURNI_MANAGER_NO_UI === true;
   // ============================================================
   // STATO GLOBALE
   // ============================================================
@@ -41,9 +33,11 @@
   // INIT AL CARICAMENTO
   // ============================================================
   document.addEventListener('DOMContentLoaded', async function () {
+  if (!window.TURNI_MANAGER_NO_UI) {
     injectUI();
-    await checkTurnoAtStartup();
-  });
+  }
+  await checkTurnoAtStartup();
+});
 
   // ============================================================
   // INJECT UI IN HEADER
@@ -104,9 +98,9 @@
       toggleOperatoriDropdown();
     });
 
-    document.getElementById('btnChiudiTurno')?.addEventListener('click', function () {
-      handleChiudiTurno();
-    });
+   document.getElementById('btnChiudiTurno')?.addEventListener('click', function () {
+  showCloseTurnoDialog();
+});
 
     document.getElementById('btnStampaTurni')?.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -308,7 +302,54 @@
       }
     }
   }
+function showCloseTurnoDialog() {
+  // evita doppioni
+  if (document.getElementById('turnoCloseModal')) return;
 
+  const wrap = document.createElement('div');
+  wrap.id = 'turnoCloseModal';
+  wrap.style.cssText = `
+    position:fixed; inset:0; background:rgba(0,0,0,.45);
+    display:flex; align-items:center; justify-content:center;
+    z-index:99999;
+  `;
+
+  wrap.innerHTML = `
+    <div style="background:#fff; width:min(520px, 92vw); border-radius:10px; padding:16px 16px 12px 16px; box-shadow:0 10px 30px rgba(0,0,0,.25);">
+      <div style="font-weight:700; font-size:16px; margin-bottom:6px;">
+        Chiudere il turno?
+      </div>
+      <div style="font-size:13px; color:#374151; margin-bottom:12px;">
+        Il turno verrà chiuso. Confermi?
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+        <button id="turnoCloseNo" style="padding:8px 12px; border-radius:8px; border:1px solid #d1d5db; background:#fff;">No</button>
+        <button id="turnoCloseReprint" style="padding:8px 12px; border-radius:8px; border:1px solid #d1d5db; background:#f3f4f6;">Ristampa</button>
+        <button id="turnoCloseYes" style="padding:8px 12px; border-radius:8px; border:1px solid #16a34a; background:#22c55e; color:#fff; font-weight:700;">Sì, chiudi</button>
+      </div>
+    </div>
+  `;
+
+  const close = () => wrap.remove();
+
+  wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
+
+  wrap.querySelector('#turnoCloseNo')?.addEventListener('click', () => close());
+
+  wrap.querySelector('#turnoCloseYes')?.addEventListener('click', async () => {
+    close();
+    await handleChiudiTurnoConfirmed(); // nuova funzione sotto
+  });
+
+  wrap.querySelector('#turnoCloseReprint')?.addEventListener('click', async () => {
+    close();
+    // apre direttamente il dropdown turni (riuso UI già in turni-manager)
+    openStampaTurniDialog();
+  });
+
+  document.body.appendChild(wrap);
+}
   // ============================================================
   // AGGIORNA UI BADGE
   // ============================================================
@@ -427,31 +468,57 @@
   }
 
   function bindStampaAzioni() {
-    const btnPrint  = document.getElementById('btnStampaPDF');
-    const btnScarica = document.getElementById('btnScaricaTxt');
+  const btnPrint   = document.getElementById('btnStampaPDF');
+  const btnScarica = document.getElementById('btnScaricaTxt');
 
-    if (btnPrint) {
-      btnPrint.onclick = function () {
-        if (!selectedTurnoId) return;
-        const url = `${window.API_BASE || '/anpr/api'}/turni_stampa.php?id=${selectedTurnoId}&action=print`;
-        const win = window.open(url, '_blank');
-        if (win) win.focus();
-      };
-    }
-
-    if (btnScarica) {
-      btnScarica.onclick = function () {
-        if (!selectedTurnoId) return;
-        const url = `${window.API_BASE || '/anpr/api'}/turni_stampa.php?id=${selectedTurnoId}&action=download`;
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = '';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      };
-    }
+  // ✅ non serve in kiosk
+  if (btnScarica) {
+    btnScarica.style.display = 'none';
   }
+
+  // ✅ STAMPA DIRETTA TERMICA (KIOSK): niente window.open, niente nuove pagine
+  if (btnPrint) {
+    btnPrint.onclick = async function () {
+      if (!selectedTurnoId) return;
+
+      try {
+        if (typeof showToast === 'function') {
+          showToast('⏳ Stampa turno...', 'info', 2000);
+        }
+
+        const url = `${window.API_BASE || '/anpr/api'}/turni_stampa.php?id=${selectedTurnoId}&action=thermal&t=${Date.now()}`;
+        const r = await fetch(url, { cache: 'no-store' });
+
+        // robusto: se non torna JSON valido, mostra errore e logga
+        const raw = await r.text();
+        let j = null;
+        try { j = JSON.parse(raw); } catch (_) {}
+
+        if (!j || j.success !== true) {
+          console.error('turni_stampa thermal response:', raw);
+          if (typeof showToast === 'function') {
+            showToast('❌ ' + ((j && j.message) ? j.message : 'Errore stampa turno'), 'error', 4500);
+          }
+          return;
+        }
+
+        if (typeof showToast === 'function') {
+          showToast('✅ Turno stampato', 'success', 2500);
+        }
+
+        // ✅ chiudi dropdown dopo stampa
+        const dd = document.getElementById('turniDropdown');
+        if (dd) dd.style.display = 'none';
+
+      } catch (e) {
+        console.error('Stampa turno error:', e);
+        if (typeof showToast === 'function') {
+          showToast('❌ Errore stampa: ' + (e?.message || e), 'error', 4500);
+        }
+      }
+    };
+  }
+}
 
   // ============================================================
   // UTILITY: formatta data ISO → GG/MM/AAAA

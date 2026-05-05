@@ -10,6 +10,8 @@ window.TURNI = window.TURNI || {};
 // ============ STATO GLOBALE ============
 let currentOperatore = null;
 let currentOperatoreStato = 'offline';
+let currentTurnoSessionId = null;
+let currentTurnoNumero = null;
 window.turnoAttivo = false;
 let turnoTimerInterval = null;
 
@@ -59,14 +61,197 @@ TURNI.initUI = async function() {
 
     // Event listeners
     document.getElementById('loginBtn')?.addEventListener('click', TURNI.handleLoginClick);
-    document.getElementById('logoutBtn')?.addEventListener('click', TURNI.handleLogout);
+   document.getElementById('logoutBtn')?.addEventListener('click', TURNI.handleLogoutClick);
     
     // Crea modal per selezione operatore
     TURNI.createOperatoreModal();
     
     console.log('✅ Badge creato');
 };
+TURNI.handleLogoutClick = function () {
+  // evita doppioni
+  if (document.getElementById('turnoCloseChoiceModal')) return;
 
+  const wrap = document.createElement('div');
+  wrap.id = 'turnoCloseChoiceModal';
+  wrap.style.cssText = `
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 99999;
+  `;
+
+  wrap.innerHTML = `
+    <div style="background:#fff; width:min(520px, 92vw); border-radius:10px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25);">
+      <div style="font-weight:800; font-size:16px; margin-bottom:6px;">Chiudere il turno?</div>
+      <div style="font-size:13px; color:#374151; margin-bottom:12px;">
+        Il turno verrà chiuso. Confermi?
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+        <button id="turnoCloseNo" style="padding:8px 12px; border-radius:8px; border:1px solid #d1d5db; background:#fff;">No</button>
+        <button id="turnoCloseReprint" style="padding:8px 12px; border-radius:8px; border:1px solid #d1d5db; background:#f3f4f6;">Ristampa</button>
+        <button id="turnoCloseYes" style="padding:8px 12px; border-radius:8px; border:0; background:#dc2626; color:#fff; font-weight:800;">Sì, chiudi</button>
+      </div>
+    </div>
+  `;
+
+  const close = () => wrap.remove();
+  wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
+
+  wrap.querySelector('#turnoCloseNo')?.addEventListener('click', close);
+
+  wrap.querySelector('#turnoCloseYes')?.addEventListener('click', async () => {
+    close();
+    await TURNI.handleLogout(); // chiusura reale
+  });
+
+  wrap.querySelector('#turnoCloseReprint')?.addEventListener('click', async () => {
+    close();
+    // apre il pannello ristampa turni
+    if (typeof TURNI.openTurniReprintDialog === 'function') {
+      TURNI.openTurniReprintDialog();
+    } else {
+      showToast('❌ Funzione ristampa turni non disponibile', 'error', 3500);
+    }
+  });
+
+  document.body.appendChild(wrap);
+};
+TURNI.openTurniReprintDialog = function () {
+  if (document.getElementById('turniReprintModal')) return;
+
+  const wrap = document.createElement('div');
+  wrap.id = 'turniReprintModal';
+  wrap.style.cssText = `
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 99999;
+  `;
+
+  wrap.innerHTML = `
+    <div style="background:#fff; width:min(760px, 96vw); border-radius:10px; padding:14px; box-shadow:0 10px 30px rgba(0,0,0,.25);">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div style="font-weight:800;">Ristampa Turni</div>
+        <button id="turniReprintClose" style="border:1px solid #d1d5db; background:#fff; border-radius:8px; padding:6px 10px;">Chiudi</button>
+      </div>
+
+      <div style="margin-top:10px; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden;">
+        <div id="turniReprintList" style="max-height:320px; overflow:auto; padding:10px;">
+          <div style="color:#9ca3af; font-size:13px;">⏳ Caricamento...</div>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end; padding:10px; border-top:1px solid #e5e7eb;">
+          <button id="turniReprintPrint" style="padding:8px 12px; border-radius:8px; background:#f59e42; border:0; color:#fff; font-weight:800;">🖨️ STAMPA</button>
+          <button id="turniReprintDownload" style="padding:8px 12px; border-radius:8px; background:#2563eb; border:0; color:#fff; font-weight:800;">⬇️ SCARICA</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const close = () => wrap.remove();
+  wrap.querySelector('#turniReprintClose')?.addEventListener('click', close);
+  wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
+
+  document.body.appendChild(wrap);
+
+  TURNI._loadTurniReprintList(wrap);
+};
+
+TURNI._loadTurniReprintList = async function (modalRoot) {
+  const list = modalRoot.querySelector('#turniReprintList');
+  const btnPrint = modalRoot.querySelector('#turniReprintPrint');
+  const btnDl = modalRoot.querySelector('#turniReprintDownload');
+  let selectedTurnoId = null;
+
+  // ✅ kiosk: nascondi download
+  if (btnDl) btnDl.style.display = 'none';
+
+  try {
+    const r = await fetch(`${API_BASE}/turni_list.php?t=${Date.now()}`, { cache: 'no-store' });
+    const j = await r.json();
+
+    if (!j.success || !Array.isArray(j.data) || j.data.length === 0) {
+      list.innerHTML = `<div style="color:#9ca3af; font-size:13px;">⚠️ Nessun turno trovato</div>`;
+      if (btnPrint) btnPrint.disabled = true;
+      return;
+    }
+
+    // default = più recente
+    selectedTurnoId = j.data[0].id;
+
+    list.innerHTML = '';
+    j.data.forEach((turno, idx) => {
+      const item = document.createElement('div');
+      item.style.cssText = `
+        padding:10px 12px; border-radius:8px; cursor:pointer;
+        border:1px solid ${idx === 0 ? '#93c5fd' : '#e5e7eb'};
+        background:${idx === 0 ? '#eff6ff' : '#fff'};
+        margin-bottom:8px; font-size:13px;
+      `;
+      const statoIcon = turno.stato === 'online' ? '🟢' : '⚫';
+      const dtFine = turno.data_fine ? ` — chiuso: ${turno.data_fine}` : '';
+      item.textContent = `${statoIcon} Turno ${String(turno.numero_turno).padStart(3, '0')} — ${turno.operatore_cod} — ${turno.data_inizio || '-'}${dtFine}`;
+
+      item.addEventListener('click', () => {
+        [...list.querySelectorAll('[data-turno-item="1"]')].forEach(el => {
+          el.style.borderColor = '#e5e7eb';
+          el.style.background = '#fff';
+        });
+        item.style.borderColor = '#93c5fd';
+        item.style.background = '#eff6ff';
+        selectedTurnoId = turno.id;
+      });
+
+      item.dataset.turnoItem = "1";
+      list.appendChild(item);
+    });
+
+    // ✅ STAMPA DIRETTA TERMICA: niente window.open, niente nuove pagine
+    if (btnPrint) {
+      btnPrint.onclick = async () => {
+        if (!selectedTurnoId) return;
+
+        try {
+          if (typeof showToast === 'function') {
+            showToast('⏳ Stampa turno...', 'info', 2000);
+          }
+
+          const url = `${API_BASE}/turni_stampa.php?id=${selectedTurnoId}&action=thermal&t=${Date.now()}`;
+          const resp = await fetch(url, { cache: 'no-store' });
+
+          const raw = await resp.text();
+          let jj = null;
+          try { jj = JSON.parse(raw); } catch (_) {}
+
+          if (!jj || jj.success !== true) {
+            console.error('turni_stampa thermal response:', raw);
+            if (typeof showToast === 'function') {
+              showToast('❌ ' + ((jj && jj.message) ? jj.message : 'Errore stampa turno'), 'error', 4500);
+            }
+            return;
+          }
+
+          if (typeof showToast === 'function') {
+            showToast('✅ Turno stampato', 'success', 2500);
+          }
+
+          // ✅ chiudi popup dopo stampa
+          document.getElementById('turniReprintModal')?.remove();
+
+        } catch (e) {
+          console.error('Stampa turno error:', e);
+          if (typeof showToast === 'function') {
+            showToast('❌ Errore stampa: ' + (e?.message || e), 'error', 4500);
+          }
+        }
+      };
+    }
+
+  } catch (e) {
+    list.innerHTML = `<div style="color:#ef4444; font-size:13px;">❌ Errore caricamento turni</div>`;
+    if (btnPrint) btnPrint.disabled = true;
+  }
+};
 // ============ CREATE OPERATORE MODAL ============
 TURNI.createOperatoreModal = async function() {
     console.log('🎨 TURNI.createOperatoreModal');
@@ -186,7 +371,25 @@ TURNI.handleLoginFromModal = async function() {
         window.operatoreTurno = operatore_cod;
         window.operatoreTurnoNome = j.data?.operatore_nome || operatore_cod;
 
-        console.log('✅ Stato aggiornato:', { turnoAttivo: window.turnoAttivo, operatore: window.operatoreTurno });
+        // ✅ NUOVO: salva id_sessione e numero_turno (turni_sessioni)
+        // (servono per logout corretto, TXT, stampa, e popolare idturno)
+        if (typeof currentTurnoSessionId !== 'undefined') {
+            currentTurnoSessionId = j.data?.id_sessione || null;
+        }
+        if (typeof currentTurnoNumero !== 'undefined') {
+            currentTurnoNumero = j.data?.numero_turno || null;
+        }
+
+        // comodo per debug
+        window.turnoSessionId = j.data?.id_sessione || null;
+        window.turnoNumero = j.data?.numero_turno || null;
+
+        console.log('✅ Stato aggiornato:', {
+            turnoAttivo: window.turnoAttivo,
+            operatore: window.operatoreTurno,
+            id_sessione: window.turnoSessionId,
+            numero_turno: window.turnoNumero
+        });
 
         // ✅ Salva in localStorage
         localStorage.setItem('turnoAttivo', '1');
@@ -194,6 +397,10 @@ TURNI.handleLoginFromModal = async function() {
         localStorage.setItem('operatoreTurnoNome', window.operatoreTurnoNome);
         localStorage.setItem('turnoStartTime', Date.now().toString());
         localStorage.setItem('turnoDowntimeSeconds', '0');
+
+        // ✅ NUOVO: persistenza id_sessione/numero_turno
+        if (j.data?.id_sessione) localStorage.setItem('turnoSessionId', String(j.data.id_sessione));
+        if (j.data?.numero_turno) localStorage.setItem('turnoNumero', String(j.data.numero_turno));
 
         await TURNI.updateUI();
         await TURNI.updateButtonStates();
@@ -212,19 +419,32 @@ TURNI.handleLoginFromModal = async function() {
 // ============ LOGOUT ============
 TURNI.handleLogout = async function() {
     console.log('🔒 TURNI.handleLogout');
+
     if (!currentOperatore) {
         showToast('❌ Nessun operatore in turno', 'error');
         return;
     }
 
+    // ✅ conferma prima di chiudere
+    const ok = confirm(`Chiudere il turno dell'operatore ${currentOperatore}?`);
+    if (!ok) return;
+
+    const savedSessionId = localStorage.getItem('turnoSessionId');
+    const id_sessione = (typeof currentTurnoSessionId !== 'undefined' && currentTurnoSessionId)
+        ? currentTurnoSessionId
+        : (savedSessionId ? parseInt(savedSessionId, 10) : null);
+
+    const payload = { operatore_cod: currentOperatore, id_sessione: id_sessione };
+    console.log('📤 Logout payload:', payload);
+
     try {
         const r = await fetch(`${API_BASE}/turni_operatore_logout.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ operatore_cod: currentOperatore })
+            body: JSON.stringify(payload)
         });
-        const j = await r.json();
 
+        const j = await r.json();
         console.log('📡 Risposta logout:', j);
 
         if (!j.success) {
@@ -232,23 +452,26 @@ TURNI.handleLogout = async function() {
             return;
         }
 
-        // ✅ Resetta stato globale
+        // reset stato
         currentOperatore = null;
         currentOperatoreStato = 'offline';
         window.turnoAttivo = false;
         window.operatoreTurno = null;
         window.operatoreTurnoNome = null;
 
-        console.log('✅ Stato resettato:', { turnoAttivo: window.turnoAttivo });
+        if (typeof currentTurnoSessionId !== 'undefined') currentTurnoSessionId = null;
+        if (typeof currentTurnoNumero !== 'undefined') currentTurnoNumero = null;
+        window.turnoSessionId = null;
+        window.turnoNumero = null;
 
-        // ✅ Pulisci localStorage
         localStorage.removeItem('turnoAttivo');
         localStorage.removeItem('operatoreTurno');
         localStorage.removeItem('operatoreTurnoNome');
         localStorage.removeItem('turnoStartTime');
         localStorage.removeItem('turnoDowntimeSeconds');
+        localStorage.removeItem('turnoSessionId');
+        localStorage.removeItem('turnoNumero');
 
-        // ✅ Ferma timer
         if (turnoTimerInterval) {
             clearInterval(turnoTimerInterval);
             turnoTimerInterval = null;
@@ -257,7 +480,7 @@ TURNI.handleLogout = async function() {
         await TURNI.updateUI();
         await TURNI.updateButtonStates();
 
-        showToast('✅ ' + j.message, 'success');
+        showToast('✅ ' + (j.message || 'Turno chiuso'), 'success');
     } catch (e) {
         console.error('❌ Errore logout:', e);
         showToast('❌ Errore connessione: ' + (e?.message || e), 'error');
@@ -308,6 +531,57 @@ TURNI.updateUI = function() {
 // ============ CHECK TURNO AL STARTUP ============
 TURNI.checkTurnoAtStartup = async function() {
     console.log('🔄 TURNI.checkTurnoAtStartup');
+
+    // 1) prova a ripristinare da DB (fonte autorevole)
+    try {
+        const r = await fetch(`${API_BASE}/turni_operatore_stato.php?t=${Date.now()}`, { cache: 'no-store' });
+        const j = await r.json();
+
+        console.log('📡 Stato turno da DB:', j);
+
+        if (j.success && j.data && j.data.stato === 'online') {
+            // ripristino da DB
+            currentOperatore = j.data.operatore_cod;
+            currentOperatoreStato = 'online';
+            window.turnoAttivo = true;
+
+            window.operatoreTurno = j.data.operatore_cod;
+            window.operatoreTurnoNome = j.data.operatore_cod; // il nome lo puoi mappare da costanti se vuoi
+
+            // ✅ sessione turno
+            currentTurnoSessionId = j.data.id_sessione || null;
+            currentTurnoNumero = j.data.numero_turno || null;
+            window.turnoSessionId = currentTurnoSessionId;
+            window.turnoNumero = currentTurnoNumero;
+
+            // ✅ localStorage: allinea stato
+            localStorage.setItem('turnoAttivo', '1');
+            localStorage.setItem('operatoreTurno', currentOperatore);
+            localStorage.setItem('operatoreTurnoNome', window.operatoreTurnoNome || currentOperatore);
+
+            if (currentTurnoSessionId) localStorage.setItem('turnoSessionId', String(currentTurnoSessionId));
+            if (currentTurnoNumero) localStorage.setItem('turnoNumero', String(currentTurnoNumero));
+
+            // startTime: se non c’è, impostalo ora (non possiamo ricostruire perfettamente il passato senza un endpoint dedicato)
+            if (!localStorage.getItem('turnoStartTime')) {
+                localStorage.setItem('turnoStartTime', Date.now().toString());
+            }
+            if (!localStorage.getItem('turnoDowntimeSeconds')) {
+                localStorage.setItem('turnoDowntimeSeconds', '0');
+            }
+
+            await TURNI.updateUI();
+            await TURNI.updateButtonStates();
+            await TURNI.startTurnoTimer();
+
+            showToast(`🔄 Turno ripristinato da DB: ${window.operatoreTurnoNome}`, 'info', 5000);
+            return;
+        }
+    } catch (e) {
+        console.warn('⚠️ Ripristino da DB fallito, provo da localStorage:', e);
+    }
+
+    // 2) fallback: ripristino da localStorage (tuo comportamento attuale)
     const wasActive = localStorage.getItem('turnoAttivo') === '1';
     const savedOperatore = localStorage.getItem('operatoreTurno');
     const savedNome = localStorage.getItem('operatoreTurnoNome');
@@ -322,25 +596,28 @@ TURNI.checkTurnoAtStartup = async function() {
         window.operatoreTurno = savedOperatore;
         window.operatoreTurnoNome = savedNome || savedOperatore;
 
-        // ✅ CALCOLA DOWNTIME
+        // ✅ sessione da localStorage (se presente)
+        currentTurnoSessionId = localStorage.getItem('turnoSessionId') ? parseInt(localStorage.getItem('turnoSessionId'), 10) : null;
+        currentTurnoNumero = localStorage.getItem('turnoNumero') ? parseInt(localStorage.getItem('turnoNumero'), 10) : null;
+        window.turnoSessionId = currentTurnoSessionId;
+        window.turnoNumero = currentTurnoNumero;
+
+        // downtime come avevi già
         const now = Date.now();
         const startTimeMs = parseInt(startTime, 10);
         const downtimeMs = now - startTimeMs;
         const downtimeSeconds = Math.floor(downtimeMs / 1000);
-        
+
         let downtimeSaved = parseInt(localStorage.getItem('turnoDowntimeSeconds') || '0', 10);
         downtimeSaved += downtimeSeconds;
-        
+
         localStorage.setItem('turnoDowntimeSeconds', downtimeSaved.toString());
         localStorage.setItem('turnoStartTime', now.toString());
-
-        console.log('✅ Turno ripristinato da localStorage - Downtime aggiunto:', downtimeSeconds, 'sec');
 
         await TURNI.updateUI();
         await TURNI.updateButtonStates();
         await TURNI.startTurnoTimer();
 
-        // ✅ Mostra toast con downtime
         const downtimeMin = Math.floor(downtimeSaved / 60);
         const downtimeSec = downtimeSaved % 60;
         const downtimeStr = downtimeMin > 0 ? `+${downtimeMin}m ${downtimeSec}s downtime` : `+${downtimeSec}s downtime`;
