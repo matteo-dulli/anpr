@@ -31,8 +31,8 @@ try {
     
     // ===== 1. RECUPERA DATI RICARICA =====
     $stmt = $db->prepare("
-        SELECT id, primary_barcode, plate_number, tipo_ricarica, 
-               prezzo_ricarica, quantita_ore, totale_ricarica, 
+        SELECT id, primary_barcode, secondary_barcode, plate_number, tipo_ricarica,
+               prezzo_ricarica, quantita_ore, totale_ricarica,
                receipt_emitted, id_turno
         FROM ricariche
         WHERE id = ?
@@ -48,6 +48,11 @@ try {
     // Se già emessa ricevuta, errore
     if ($ricarica['receipt_emitted'] == 1) {
         throw new Exception('Ricevuta già emessa per questa ricarica');
+    }
+
+    // Controlla se ticket già abbinato
+    if (!empty($ricarica['secondary_barcode'])) {
+        throw new Exception('⚠️ Ticket già abbinato! Usa ricevuta della sosta per stampare.');
     }
     
     // ===== 2. GENERA CODICE RICEVUTA =====

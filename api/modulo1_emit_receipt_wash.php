@@ -41,6 +41,11 @@ try {
         throw new Exception('Ricevuta già emessa per questo lavaggio');
     }
 
+    // Controlla se ticket già abbinato
+    if (!empty($lavaggio['secondary_barcode'])) {
+        throw new Exception('⚠️ Ticket già abbinato! Usa ricevuta della sosta per stampare.');
+    }
+
     // ===== ESTRAI DATI LAVAGGIO =====
     $plate_number = trim((string)($lavaggio['plate_number'] ?? ''));
     $tipo_lavaggio = trim((string)($lavaggio['tipo_lavaggio'] ?? ''));
