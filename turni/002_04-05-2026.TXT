@@ -1,0 +1,24 @@
+═══════════════════════════════════════════
+INFO TURNO
+Turno N.      002
+Data:         04-05-2026
+Operatore:    01
+Ora inizio:   18:25:00
+Ora chiusura: 19:19:59
+
+STATISTICHE:
+─────────────────────
+Ticket emessi:            9
+Ticket annullati:         0
+Ricevute emesse:         13
+
+PAGAMENTI:
+──────────
+Pagamenti totali:        12
+Pagamenti Cash:           8
+Pagamenti Elett.:         4
+
+Contante:    EUR     205.00
+Online:      EUR      78.00
+TOTALE:      EUR     283.00
+═══════════════════════════════════════════

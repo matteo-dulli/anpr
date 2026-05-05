@@ -50,18 +50,33 @@ function escpos_debug_log(string $msg): void {
 }
 
 /**
+ * ✅ Helper: rimuove righe decorative (====/----/____ e unicode ─/═) prima della stampa.
+ */
+function escpos_strip_decorative_lines(string $txt): string {
+  $txt = str_replace("\r\n", "\n", $txt);
+  $txt = str_replace("\r", "\n", $txt);
+
+  // =====  -----  _____
+  $txt = preg_replace('/^[=\-_]+$/m', '', $txt);
+
+  // unicode line drawing: ─ ━ ═ (e mix simili)
+  $txt = preg_replace('/^[─━═\-_=]+$/mu', '', $txt);
+
+  // compatta righe vuote multiple
+  $txt = preg_replace("/\n{3,}/", "\n\n", $txt);
+
+  return $txt;
+}
+
+/**
  * Costruisce il buffer ESC/POS raw (testo + barcode nativo CODE128).
- *
- * REGOLE:
- * - Il valore barcode NON si legge mai dal TXT.
- *   La riga "BARCODE:" nel testo è solo un SEGNAPOSTO di posizione.
- * - showHri:
- *   - false => NON stampare testo sotto (ticket)
- *   - true  => stampare testo sotto (ricevuta)
  */
 function escpos_build_raw(string $txt, string $barcodeValue, bool $showHri = false): string {
   $txt = str_replace("\r\n", "\n", $txt);
   $txt = str_replace("\r", "\n", $txt);
+
+  // ✅ NEW: rimuovi righe decorative prima di tutto
+  $txt = escpos_strip_decorative_lines($txt);
 
   // ✅ barcode ONLY from input/DB (never from TXT)
   $finalBarcode = trim((string)$barcodeValue);
@@ -70,12 +85,13 @@ function escpos_build_raw(string $txt, string $barcodeValue, bool $showHri = fal
   $out .= "\x1B\x40";                 // ESC @ init
   $out .= "\x1B\x74" . chr(16);       // ✅ WPC1252 (N=16 sulla tua stampante, € OK)
 
-  // ✅ Fondamentale: converti UTF-8 -> Windows-1252 (così € diventa 0x80)
-  $txt1252 = @iconv('UTF-8', 'Windows-1252//TRANSLIT', $txt);
-  if ($txt1252 !== false) {
+  // ✅ Converti UTF-8 -> Windows-1252 (così € diventa 0x80)
+  // NOTA: //IGNORE è più stabile di //TRANSLIT per l'€
+  $txt1252 = @iconv('UTF-8', 'Windows-1252//IGNORE', $txt);
+  if ($txt1252 !== false && $txt1252 !== null && $txt1252 !== '') {
     $txt = $txt1252;
   } else {
-    // fallback: se iconv fallisce, evita di mandare il simbolo euro in UTF-8 (3 byte)
+    // fallback: se iconv fallisce, evita euro in UTF-8 (3 byte)
     $txt = str_replace('€', 'EUR', $txt);
   }
 
@@ -96,12 +112,11 @@ function escpos_build_raw(string $txt, string $barcodeValue, bool $showHri = fal
     $out .= $showHri ? "\x1D\x48\x02" : "\x1D\x48\x00";
     $out .= "\x1D\x66\x00"; // HRI font A
 
-    // ✅ dimensione barcode (più grande di prima)
-    // GS w n = spessore barre (1..6 tipico), GS h n = altezza (1..255)
+    // dimensione barcode
     $out .= "\x1D\x77" . chr(2);    // module width 2
     $out .= "\x1D\x68" . chr(120);  // height 120
 
-    // ✅ CODE128: payload diretto + comando CON LUNGHEZZA
+    // CODE128: payload diretto + comando CON LUNGHEZZA
     $payload = $finalBarcode;
     if (strlen($payload) > 255) $payload = substr($payload, 0, 255);
 
@@ -114,6 +129,10 @@ function escpos_build_raw(string $txt, string $barcodeValue, bool $showHri = fal
   foreach ($lines as $line) {
     $trim = trim($line);
 
+    // ✅ NEW: skip righe decorative (doppia sicurezza)
+    if ($trim !== '' && preg_match('/^[=\-_]+$/', $trim)) continue;
+    if ($trim !== '' && preg_match('/^[─━═\-_=]+$/u', $trim)) continue;
+
     // placeholder BARCODE:
     if (stripos($trim, 'BARCODE:') === 0) {
       $barcodePrinted = true;
@@ -121,7 +140,7 @@ function escpos_build_raw(string $txt, string $barcodeValue, bool $showHri = fal
       continue;
     }
 
-    // header
+    // header (non trattare separatori come header)
     if (!$printedHeader && $trim !== '' && !preg_match('/^[=\-]+$/', $trim)) {
       $printedHeader = true;
       $out .= "\x1B\x61\x01";
@@ -134,9 +153,14 @@ function escpos_build_raw(string $txt, string $barcodeValue, bool $showHri = fal
       continue;
     }
 
-    // separators
+    // ------------------------------------------------------------
+    // OLD: ristampava separatori a lunghezza fissa
+    // Richiesta: TOGLI TUTTE LE RIGHE --------/______/=====
+    // ------------------------------------------------------------
+    /*
     if (preg_match('/^=+$/', $trim)) { $out .= str_repeat('=', 42) . "\x0A"; continue; }
     if (preg_match('/^-+$/', $trim)) { $out .= str_repeat('-', 42) . "\x0A"; continue; }
+    */
 
     $out .= $line . "\x0A";
   }
@@ -146,8 +170,13 @@ function escpos_build_raw(string $txt, string $barcodeValue, bool $showHri = fal
     $emitBarcode();
   }
 
-  $out .= "\x0A\x0A";
-  $out .= "\x1D\x56\x01"; // cut
+  // ✅ FIX TAGLIO: feed più lungo prima del cut, altrimenti “taglia troppo presto”
+  $out .= "\x0A\x0A\x0A\x0A\x0A";     // 5 righe
+  $out .= "\x1B\x64" . chr(5);        // ESC d n => feed 5 righe (molto compatibile)
+
+  // ✅ Cut (full cut) più compatibile di GS V 1 su alcune stampanti
+  $out .= "\x1D\x56\x00";
+
   return $out;
 }
 

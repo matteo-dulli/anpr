@@ -1,14 +1,5 @@
 <?php
-/**
- * turni_stampa.php
- * Serve il file .txt del turno selezionato per stampa o download
- *
- * GET params:
- *   id      → id della sessione in turni_sessioni
- *   action  → 'print'    (apre HTML stampabile)
- *          | 'download' (scarica .txt)
- *          | 'thermal'  (✅ stampa diretta su termica ESC/POS, ritorna JSON)
- */
+
 date_default_timezone_set('Europe/Rome');
 
 require_once __DIR__ . '/../config/config.php';
@@ -21,6 +12,49 @@ if (!$id) {
     http_response_code(400);
     echo 'Parametro id mancante';
     exit;
+}
+
+/**
+ * ✅ Rimuove righe decorative (====, ----, ____, unicode) e compatta righe vuote.
+ * Serve per eliminare separatori da TXT e stampe.
+ */
+function strip_sep_lines(string $s): string {
+    $s = str_replace("\r\n", "\n", $s);
+    $s = str_replace("\r", "\n", $s);
+
+    // righe tipo =======  ------  ______
+    $s = preg_replace('/^[=\-_]+$/m', '', $s);
+
+    // righe unicode tipo ─────  ═════  ━━━━━ (e mix simili)
+    $s = preg_replace('/^[─━═\-_=]+$/mu', '', $s);
+
+    // compatta eccesso righe vuote
+    $s = preg_replace("/\n{3,}/", "\n\n", $s);
+
+    return trim($s) . "\n";
+}
+
+/**
+ * suffix ticket_code: prende parte dopo ultimo '-' (se presente).
+ * Esempio: T20260505-130500-6DA38 -> 6DA38
+ */
+function ticket_suffix(string $code): string {
+    $code = trim($code);
+    if ($code === '') return '';
+    $pos = strrpos($code, '-');
+    return ($pos !== false) ? substr($code, $pos + 1) : $code;
+}
+
+/**
+ * Inserisce $insertText prima della prima occorrenza di $marker (case-insensitive).
+ * Se marker non trovato, appende in fondo.
+ */
+function insert_before_marker(string $base, string $marker, string $insertText): string {
+    $pos = stripos($base, $marker);
+    if ($pos === false) {
+        return rtrim($base) . "\n\n" . rtrim($insertText) . "\n";
+    }
+    return substr($base, 0, $pos) . rtrim($insertText) . "\n\n" . substr($base, $pos);
 }
 
 try {
@@ -102,6 +136,61 @@ try {
         if ($fileName) {
             @file_put_contents($turniDir . '/' . $fileName, $c); // UTF-8
         }
+    }
+
+    // ----------------------------------------------------------------
+    // ✅ 1) Ripulisci sempre separatori dal contenuto (HTML/Download/Thermal)
+    // ----------------------------------------------------------------
+    $contenuto = strip_sep_lines((string)$contenuto);
+
+    // ----------------------------------------------------------------
+    // ✅ 2) Costruisci sezione NOTE dal DB:
+    // - filtro per created_at nel range turno (note create nel turno)
+    // - stampa entry_datetime come data/ora ingresso
+    // ----------------------------------------------------------------
+    $noteBlock = '';
+    $inizioTurno = (string)($sessione['inizio'] ?? '');
+    $fineTurno   = (string)($sessione['fine'] ?? '');
+
+    if ($inizioTurno !== '' && $fineTurno !== '') {
+        $s = $db->prepare("
+            SELECT ticket_code, plate_number, entry_datetime, note, created_at
+            FROM tickets_printed
+            WHERE created_at >= :inizio
+              AND created_at <= :fine
+              AND note IS NOT NULL
+              AND TRIM(note) <> ''
+            ORDER BY created_at ASC
+        ");
+        $s->execute([
+            ':inizio' => $inizioTurno,
+            ':fine'   => $fineTurno
+        ]);
+        $rows = $s->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($rows && count($rows) > 0) {
+            $noteBlock = "NOTE:\n";
+            foreach ($rows as $r) {
+                $tc = (string)($r['ticket_code'] ?? '');
+                $suffix = ticket_suffix($tc);
+
+                $targa = trim((string)($r['plate_number'] ?? ''));
+                if ($targa === '') $targa = '__________';
+
+                // ✅ stampa la data/ora ingresso (entry_datetime), NON created_at
+                $dtRaw = (string)($r['entry_datetime'] ?? '');
+                $dtFmt = $dtRaw ? date('d-m-Y H:i:s', strtotime($dtRaw)) : '--:--:--';
+
+                $noteBlock .= sprintf("%s %s  %s\n", $suffix, $targa, $dtFmt);
+            }
+            $noteBlock .= "\n";
+        }
+    }
+
+    // Inserisci NOTE prima di "RIEPILOGO CLASSI" se presente, altrimenti in fondo.
+    if ($noteBlock !== '') {
+        $contenuto = insert_before_marker($contenuto, 'RIEPILOGO CLASSI', $noteBlock);
+        $contenuto = strip_sep_lines($contenuto); // pulizia finale
     }
 
     // ----------------------------------------------------------------

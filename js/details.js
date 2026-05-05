@@ -705,8 +705,8 @@ if ((!entryDate || !entryTime) && plate.date_detected) {
           </label>
 
           <label>Prezzo €
-            <input type="number" id="prezzo" value="${plate.prezzo || ''}" step="0.01" min="0" ${fieldStateLocal("prezzo")}>
-          </label>
+  <input type="number" id="prezzo" value="${plate.prezzo || ''}" step="0.01" min="0" readonly ${fieldStateLocal("prezzo")}>
+</label>
 
           <button type="button" onclick="calcolaUscitaPerTarga()" class="btn-small" style="background:#667eea; color:white;" ${invoiceCode ? "disabled" : ""}>🧮 Calcola</button>
           ${!invoiceCode ? `<button type="button" onclick="emettiRicevutaTarga()" class="btn-small" style="background:#22c55e;">📄 Ricevuta</button>` : ""}
@@ -726,7 +726,7 @@ if ((!entryDate || !entryTime) && plate.date_detected) {
             <label>Min</label>
             <input type="number" id="minuti" value="0" readonly>
           </div>
-		  <div id="ioNoteIndicator" style="margin-left:inherit;"></div>
+		  <div id="ioNoteIndicator" style="margin-left:auto;"></div>
         </div>
       </div>
     </div>
@@ -869,11 +869,14 @@ setTimeout(() => {
       if (!note.trim()) { el.innerHTML = ''; return; }
 
       el.innerHTML = `
-        <button type="button" id="btnOpenNote" title="Note presenti" style="
-          width:18px;height:18px;border-radius:50%; float: left;;
-          border:0;background:#facc15;cursor:pointer;
-          box-shadow:0 0 0 2px #11111122;
-        "></button>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <span style="font-size:11px;font-weight:bold;color:#f59e42;">NOTE</span>
+          <button type="button" id="btnOpenNote" title="Note presenti" style="
+            width:18px;height:18px;border-radius:50%;
+            border:0;background:#facc15;cursor:pointer;
+            box-shadow:0 0 0 2px #11111122;
+          "></button>
+        </div>
       `;
 
       document.getElementById('btnOpenNote')?.addEventListener('click', () => {
@@ -900,7 +903,7 @@ setTimeout(() => {
   // ✅ CHIAMATA: serve davvero
   updateNoteIndicator(plateCtx);
 
-  // ✅ (opzionale ma consigliato) aggiorna l’indicatore quando l’utente salva
+  // ✅ (opzionale ma consigliato) aggiorna l'indicatore quando l'utente salva
   // perché handleSave salva anche Modulo3.
   window.__updateNoteIndicator = () => updateNoteIndicator(plateCtx);
 
