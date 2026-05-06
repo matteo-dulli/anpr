@@ -380,6 +380,27 @@ try {
         error_log('[emit_receipt_plate] Tessera scalare warning: ' . $eTess->getMessage());
     }
 
+    // ✅ Blocca lavaggio e ricarica legati al ticket_code (solo se non già bloccati)
+    try {
+        $stmtWashStop = $db->prepare("UPDATE lavaggi SET stop = 1 WHERE primary_barcode = ? AND stop = 0");
+        $stmtWashStop->execute([$ticket_code]);
+        if ($stmtWashStop->rowCount() > 0) {
+            error_log('[emit_receipt_plate] LAVAGGIO BLOCCATO per ticket_code=' . $ticket_code);
+        }
+    } catch (Throwable $eWash) {
+        error_log('[emit_receipt_plate] Errore blocco lavaggio: ' . $eWash->getMessage());
+    }
+
+    try {
+        $stmtRechargeStop = $db->prepare("UPDATE ricariche SET stop = 1 WHERE primary_barcode = ? AND stop = 0");
+        $stmtRechargeStop->execute([$ticket_code]);
+        if ($stmtRechargeStop->rowCount() > 0) {
+            error_log('[emit_receipt_plate] RICARICA BLOCCATA per ticket_code=' . $ticket_code);
+        }
+    } catch (Throwable $eRecharge) {
+        error_log('[emit_receipt_plate] Errore blocco ricarica: ' . $eRecharge->getMessage());
+    }
+
     // rigenera ricevuta dopo tessera (come nel tuo codice)
     $fileCreato = writeReceiptTxt($receiptCode, $invoiceDir . DIRECTORY_SEPARATOR, false, $db, (bool)$umFlag);
     if (!$fileCreato || !file_exists($fileCreato)) {
