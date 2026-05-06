@@ -36,14 +36,14 @@ try {
         throw new Exception('Lavaggio non trovato (ID: ' . $id_lavaggio . ')');
     }
 
+    // ✅ NUOVO: Controlla se ticket è già abbinato
+    if (!empty($lavaggio['secondary_barcode'])) {
+        throw new Exception('⚠️ Ticket già abbinato! Usa ricevuta della sosta per stampare.');
+    }
+
     // Controlla se ricevuta già emessa
     if (!empty($lavaggio['receipt_emitted']) && (int)$lavaggio['receipt_emitted'] === 1) {
         throw new Exception('Ricevuta già emessa per questo lavaggio');
-    }
-
-    // Controlla se ticket già abbinato
-    if (!empty($lavaggio['secondary_barcode'])) {
-        throw new Exception('⚠️ Ticket già abbinato! Usa ricevuta della sosta per stampare.');
     }
 
     // ===== ESTRAI DATI LAVAGGIO =====

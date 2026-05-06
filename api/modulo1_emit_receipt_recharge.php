@@ -2,10 +2,8 @@
 /**
  * modulo1_emit_receipt_recharge.php
  * Emette ricevuta per RICARICA
- * - Genera codice ricevuta (R_Ymd_His)
  * - Salva in cassa, invoices, invoices_printed
- * - Stampa su stampante termica ESC/POS
- * - Marca ricarica come receipt_emitted = 1
+ * - Stampa su stampante termica via ESCPOS
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -15,68 +13,50 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/escpos.php';
 require_once __DIR__ . '/modulo1_receipt_format.php';
 
-$response = ['success' => false, 'message' => '', 'data' => []];
+$response = ['success' => false, 'message' => ''];
 
 try {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    $id_ricarica = isset($data['id_ricarica']) ? (int)$data['id_ricarica'] : 0;
-    $id_turno = isset($data['id_turno']) ? (int)$data['id_turno'] : null;
-    
-    if ($id_ricarica <= 0) {
-        throw new Exception('id_ricarica non valido');
-    }
-    
     $db = getDatabaseConnection();
-    
-    // ===== 1. RECUPERA DATI RICARICA =====
-    $stmt = $db->prepare("
-        SELECT id, primary_barcode, secondary_barcode, plate_number, tipo_ricarica,
-               prezzo_ricarica, quantita_ore, totale_ricarica,
-               receipt_emitted, id_turno
-        FROM ricariche
-        WHERE id = ?
-        LIMIT 1
-    ");
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    // ===== VALIDAZIONI =====
+    if (empty($data['id_ricarica'])) {
+        throw new Exception('id_ricarica mancante');
+    }
+
+    $id_ricarica = (int)$data['id_ricarica'];
+    $id_turno = isset($data['id_turno']) ? (int)$data['id_turno'] : null;
+
+    // ===== CARICA DATI RICARICA =====
+    $stmt = $db->prepare("SELECT * FROM ricariche WHERE id = ? LIMIT 1");
     $stmt->execute([$id_ricarica]);
     $ricarica = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$ricarica) {
-        throw new Exception('Ricarica non trovata: id=' . $id_ricarica);
+        throw new Exception('Ricarica non trovata (ID: ' . $id_ricarica . ')');
     }
-    
-    // Se già emessa ricevuta, errore
-    if ($ricarica['receipt_emitted'] == 1) {
+
+    // Controlla se ricevuta già emessa
+    if (!empty($ricarica['receipt_emitted']) && (int)$ricarica['receipt_emitted'] === 1) {
         throw new Exception('Ricevuta già emessa per questa ricarica');
     }
 
-    // Controlla se ticket già abbinato
-    if (!empty($ricarica['secondary_barcode'])) {
-        throw new Exception('⚠️ Ticket già abbinato! Usa ricevuta della sosta per stampare.');
-    }
-    
-    // ===== 2. GENERA CODICE RICEVUTA =====
+    // ===== ESTRAI DATI RICARICA =====
+    $plate_number = trim((string)($ricarica['plate_number'] ?? ''));
+    $tipo_ricarica = trim((string)($ricarica['tipo_ricarica'] ?? ''));
+    $quantita_ore = (float)($ricarica['quantita_ore'] ?? 0);
+    $totale_ricarica = (float)($ricarica['totale_ricarica'] ?? 0);
+
+    // ===== GENERA CODICE RICEVUTA =====
     $now = new DateTime('now', new DateTimeZone('Europe/Rome'));
     $receiptCode = 'R_' . $now->format('Ymd_His');
     $nowSql = $now->format('Y-m-d H:i:s');
-    
-    // ===== 3. PREPARA DATI RICEVUTA =====
-    $plateNumber = trim((string)($ricarica['plate_number'] ?? ''));
-    $totalPrice = (float)($ricarica['totale_ricarica'] ?? 0);
-    $rechargeType = trim((string)($ricarica['tipo_ricarica'] ?? ''));
-    $quantityHours = (float)($ricarica['quantita_ore'] ?? 0);
-    
-    // ===== 4. GENERA TESTO RICEVUTA =====
-    $receiptText = generate_receipt_recharge(
-        $receiptCode,
-        $plateNumber,
-        $totalPrice,
-        $rechargeType,
-        $quantityHours
-    );
-    
-    // ===== 5. SALVA IN CASSA =====
-    $stmtCassa = $db->prepare("
+
+    // ===== GENERA TESTO RICEVUTA =====
+    $receiptText = generate_receipt_recharge($receiptCode, $plate_number, $totale_ricarica, $tipo_ricarica, $quantita_ore);
+
+    // ===== SALVA IN CASSA =====
+    $stmt = $db->prepare("
         INSERT INTO cassa (
             id_ricarica,
             tipo_servizio,
@@ -86,40 +66,32 @@ try {
             id_turno,
             created_at,
             updated_at
-        ) VALUES (?, 'ricarica', ?, ?, ?, ?, NOW(), NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ");
-    
-    $stmtCassa->execute([
+    $stmt->execute([
         $id_ricarica,
-        $plateNumber,
+        'ricarica',
+        $plate_number,
         $receiptCode,
-        $totalPrice,
-        $id_turno
+        $totale_ricarica,
+        $id_turno,
+        $nowSql,
+        $nowSql
     ]);
-    
+
     $idCassa = $db->lastInsertId();
-    
-    // ===== 6. SALVA IN INVOICES =====
-    $stmtInv = $db->prepare("
-        INSERT INTO invoices (
-            receipt_code,
-            price,
-            id_turno,
-            created_at,
-            updated_at
-        ) VALUES (?, ?, ?, NOW(), NOW())
+
+    // ===== SALVA IN INVOICES =====
+    $stmt = $db->prepare("
+        INSERT INTO invoices (receipt_code, price, id_turno, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
     ");
-    
-    $stmtInv->execute([
-        $receiptCode,
-        $totalPrice,
-        $id_turno
-    ]);
-    
+    $stmt->execute([$receiptCode, $totale_ricarica, $id_turno, $nowSql, $nowSql]);
+
     $idInvoice = $db->lastInsertId();
-    
-    // ===== 7. SALVA IN INVOICES_PRINTED =====
-    $stmtInvPrint = $db->prepare("
+
+    // ===== SALVA IN INVOICES_PRINTED =====
+    $stmt = $db->prepare("
         INSERT INTO invoices_printed (
             receipt_code,
             id_ricarica,
@@ -127,59 +99,52 @@ try {
             price,
             id_turno,
             created_at
-        ) VALUES (?, ?, 'ricarica', ?, ?, NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?)
     ");
-    
-    $stmtInvPrint->execute([
+    $stmt->execute([
         $receiptCode,
         $id_ricarica,
-        $totalPrice,
-        $id_turno
+        'ricarica',
+        $totale_ricarica,
+        $id_turno,
+        $nowSql
     ]);
-    
-    // ===== 8. MARCA RICARICA COME RECEIPT_EMITTED =====
-    $stmtMark = $db->prepare("
+
+    $idInvoicePrinted = $db->lastInsertId();
+
+    // ===== AGGIORNA RICARICA: MARCA COME RICEVUTA EMESSA =====
+    $stmt = $db->prepare("
         UPDATE ricariche
-        SET receipt_emitted = 1, updated_at = NOW()
+        SET receipt_emitted = 1, updated_at = ?
         WHERE id = ?
-        LIMIT 1
     ");
-    
-    $stmtMark->execute([$id_ricarica]);
-    
-    // ===== 9. STAMPA SU STAMPANTE TERMICA ESC/POS =====
+    $stmt->execute([$nowSql, $id_ricarica]);
+
+    // ===== STAMPA SU STAMPANTE TERMICA =====
     $printResult = escpos_print_txt_with_barcode($receiptText, $receiptCode, true);
-    
+
     if (!$printResult['success']) {
         error_log('[modulo1_emit_receipt_recharge] PRINT WARNING: ' . ($printResult['message'] ?? 'unknown'));
     }
-    
-    // ===== 10. RISPOSTA =====
+
+    // ===== RISPOSTA =====
     $response['success'] = true;
     $response['message'] = '✅ Ricevuta ricarica emessa e stampata';
     $response['data'] = [
         'receipt_code' => $receiptCode,
         'id_cassa' => $idCassa,
-        'id_invoice' => $idInvoice,
-        'id_ricarica' => $id_ricarica,
-        'totale' => $totalPrice,
-        'quantita_ore' => $quantityHours,
+        'id_invoices' => $idInvoice,
+        'id_invoices_printed' => $idInvoicePrinted,
+        'total_price' => $totale_ricarica,
         'print_success' => (bool)($printResult['success'] ?? false),
         'print_message' => (string)($printResult['message'] ?? '')
     ];
-    
-    if (function_exists('logEvent')) {
-        logEvent('ricarica', "Ricevuta emessa: CODE=$receiptCode ID_RICARICA=$id_ricarica TOTALE=$totalPrice QTA=$quantityHours");
-    }
-    
-} catch (Exception $e) {
+
+} catch (Throwable $e) {
     http_response_code(400);
     $response['success'] = false;
     $response['message'] = '❌ ' . $e->getMessage();
-    
-    if (function_exists('logEvent')) {
-        logEvent('error', 'MODULO1_EMIT_RECEIPT_RECHARGE_ERROR: ' . $e->getMessage());
-    }
+    error_log('[modulo1_emit_receipt_recharge] ERROR: ' . $e->getMessage());
 }
 
 echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);

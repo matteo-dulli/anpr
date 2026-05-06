@@ -85,10 +85,10 @@ try {
             error_log('[emit_receipt_passage] UM update warning: ' . $eUm->getMessage());
         }
     }
-
-    if (trim($entry_datetime) === '' || trim($exit_datetime) === '') {
-        throw new Exception("Data/ora ingresso o uscita non valorizzata, impossibile emettere la ricevuta!");
-    }
+////////////////////////////////////////
+    if (empty($entry_datetime) || empty($exit_datetime)) {
+    throw new Exception("Data/ora ingresso o uscita non valorizzata!");
+}
 
     $now = new DateTime('now', new DateTimeZone('Europe/Rome'));
     $receiptCode = 'R_' . $now->format('Ymd_His');

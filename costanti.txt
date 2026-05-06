@@ -12,6 +12,7 @@ TestoF2 = Auto media
 TestoF3 = Auto grande
 TestoF4 = Auto Lusso
 TestoF5 = Furgone
+TestoF6 = Servizio 
 
 # PREZZI ORARI (€/ora)
 PrezzoF1 = 3.00
@@ -19,6 +20,7 @@ PrezzoF2 = 4.00
 PrezzoF3 = 5.00
 PrezzoF4 = 6.00
 PrezzoF5 = 7.00
+PrezzoF6 = 0.00
 
 # PREZZI GIORNALIERI (€/giorno 24h)
 PrezzoDayF1 = 19.00
@@ -26,6 +28,7 @@ PrezzoDayF2 = 20.00
 PrezzoDayF3 = 25.00
 PrezzoDayF4 = 35.00
 PrezzoDayF5 = 50.00
+PrezzoDayF6 = 00,00
 
 # TOLLERANZA (minuti sotto i quali non si paga)
 TolleranzaF1 = 5
@@ -33,6 +36,7 @@ TolleranzaF2 = 5
 TolleranzaF3 = 5
 TolleranzaF4 = 5
 TolleranzaF5 = 5
+TolleranzaF6 = 5
 
 # ORE STANDARD PER CALCOLO TARIFARIO
 Nore = 5
@@ -80,12 +84,72 @@ PORT =
 USB =
 USB_SHARE =
 PRINTER_NAME = POS-80
-////PRINTER_NAME = POS-80-Series
 PRINTER_SHARE = \\PC-TICKET\pos-80
 BARCODE = CODE128
 BARCODE_FONT =
+
+# BARCODE SIZE (ESC/POS GS w / GS h)
+# w: 1..6 tipico (spessore barre)  |  h: 1..255 (altezza)
+# normal = ticket primario (barcode lungo)
+BARCODE_W = 2
+BARCODE_H = 140
+
+# mini = mini-ticket (barcode corto)
+BARCODE_W_MINI = 3
+BARCODE_H_MINI = 120
+
+# receipt = ricevute (barcode medio)
+BARCODE_W_RECEIPT = 2
+BARCODE_H_RECEIPT = 160
 
 # OPERATORI
 01 = Gianni
 02 = Rossi
 03 = Bianchi
+
+# ==================================================
+# DESCRIZIONI LAVAGGIO
+# ==================================================
+TestoL1 = Auto piccola
+TestoL2 = Auto media
+TestoL3 = Auto grande
+TestoL4 = Auto Lusso
+TestoL5 = Furgone
+
+# PREZZI LAVAGGIO (€)
+PrezzoL1 = 23.00
+PrezzoL2 = 27.00
+PrezzoL3 = 33.00
+PrezzoL4 = 45.00
+PrezzoL5 = 50.00
+
+# ==================================================
+# DESCRIZIONI RICARICA
+# ==================================================
+TestoE1 = Motociclo
+TestoE2 = Forfait
+TestoE3 = Auto grande
+TestoE4 = Auto Lusso
+TestoE5 = Ricarica Oraria
+
+# PREZZI RICARICA (€)
+PrezzoE1 = 35.00
+PrezzoE2 = 45.00
+PrezzoE3 = 50.00
+PrezzoE4 = 60.00
+PrezzoE5 = 0.80
+
+# ==================================================
+# ACCESSORI CLEAN
+# ==================================================
+Tergicristalli = 18
+Tappetini anteriori = 23
+Tappetini Posteriori = 30
+
+# ==================================================
+# PRODOTTI CLEAN
+# ==================================================
+Shampoo = 15
+Spazzola = 20
+Telo copertura = 30
+Copri cerchi = 60

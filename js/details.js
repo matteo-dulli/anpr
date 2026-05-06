@@ -744,7 +744,7 @@ if (!existing) {
       <div class="accordion-section">
         <div class="accordion-header" onclick="toggleAccordion(this)">
           <span class="accordion-icon">▶</span>
-          <h3>🎫 Info Ticket</h3>
+          <h3>🎫 Lavaggio e Ricarica</h3>
         </div>
         <div class="accordion-content" style="display:none;">
           <div id="modulo1Ticket"></div>
@@ -2263,6 +2263,69 @@ async function savePlateModulesIfPresent() {
   if (!plateId) return { success: false, message: 'plateId mancante (moduli)' };
 
   const results = [];
+
+// ✅ MODULO1 SAVE (Lavaggi e Ricariche)
+try {
+  const modulo1Data = window.Modulo1?.getData?.();
+  
+  // ✅ CORRETTO: Salva SOLO se c'è almeno UN lavaggio O UNA ricarica compilati
+  const hasWash = modulo1Data?.wash?.type && modulo1Data.wash.type !== '';
+  const hasRecharge = modulo1Data?.recharge?.type && modulo1Data.recharge.type !== '';
+  
+  if (hasWash || hasRecharge) {
+    
+    // Salva lavaggio (solo se compilato)
+    if (hasWash) {
+      const washPayload = {
+        plate_id: plateId,
+        secondary_barcode: secondaryBarcode,
+        plate_number: plateNumber,
+        tipo_lavaggio: modulo1Data.wash.type,
+        accessori: modulo1Data.wash.accessories?.filter(a => a.desc) || [],
+        prodotti: modulo1Data.wash.products?.filter(p => p.desc) || [],
+        id_turno: window.CURRENT_TURNO_ID || null
+      };
+      const washRes = await fetch(`${API_BASE}/modulo1_wash_save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(washPayload)
+      });
+      const washJ = await washRes.json();
+      if (!washJ.success) throw new Error('Lavaggio: ' + washJ.message);
+      results.push({ modulo: 'Modulo1-Wash', ...washJ });
+    }
+    
+    // Salva ricarica (solo se compilata)
+    if (hasRecharge) {
+      const rechargePayload = {
+        plate_id: plateId,
+        secondary_barcode: secondaryBarcode,
+        plate_number: plateNumber,
+        tipo_ricarica: modulo1Data.recharge.type,
+        quantita_ore: modulo1Data.recharge.qty || 0,
+        id_turno: window.CURRENT_TURNO_ID || null
+      };
+      const rechargeRes = await fetch(`${API_BASE}/modulo1_recharge_save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rechargePayload)
+      });
+      const rechargeJ = await rechargeRes.json();
+      if (!rechargeJ.success) throw new Error('Ricarica: ' + rechargeJ.message);
+      results.push({ modulo: 'Modulo1-Recharge', ...rechargeJ });
+    }
+  }
+  // Se nessuno è compilato, semplicemente non entra nel blocco (OK, non è un errore)
+  
+} catch (eModulo1) {
+  console.warn('⚠️ Modulo1 save warning:', eModulo1.message);
+  // Non blocca il salvataggio principale
+}
+
+  // -------------------------
+  // MODULO2: Veicolo
+  // -------------------------
+  // ... resto del codice ...
 
   // -------------------------
   // MODULO2: Veicolo
