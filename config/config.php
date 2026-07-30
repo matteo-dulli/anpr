@@ -102,6 +102,9 @@ define('LOGS_ERRORS', LOGS_DIR . '/errors.log');
 define('LOGS_PLATES', LOGS_DIR . '/plates.log');
 define('LOGS_DELETIONS', LOGS_DIR . '/deletions.log');
 
+// Redirige error_log() di PHP verso anpr/logs invece del log di sistema
+ini_set('error_log', LOGS_DIR . '/php_errors.log');
+
 // Percorsi database
 define('DATABASE_DIR', PROJECT_ROOT . '/database');
 
